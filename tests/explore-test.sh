@@ -50,8 +50,8 @@ newproj higher none 'echo "latency: 3.5 ms"'
 [ "$(ex measure)" = "VALUE=3.5" ]; check "measure takes the last number on the line" $?
 newproj higher none 'printf "12\nsummary 7\n\n"'
 [ "$(ex measure)" = "VALUE=7" ]; check "measure takes the last non-empty line" $?
-newproj higher none 'n=$(cat count 2>/dev/null || echo 0); n=$((n+1)); echo $n > count; case $n in 1) echo 5;; 2) echo 1;; *) echo 9;; esac'
-out=$(ex measure --runs 3); grep -q '^VALUE=5$' <<<"$out"; check "measure --runs 3 reports the median (5 of 5,1,9)" $?
+newproj higher none 'n=$(cat count 2>/dev/null || echo 0); n=$((n+1)); echo $n > count; case $n in 1) echo 9;; 2) echo 1;; *) echo 5;; esac'
+out=$(ex measure --runs 3); grep -q '^VALUE=5$' <<<"$out"; check "measure --runs 3 reports the median (5 of 9,1,5)" $?
 newproj higher none 'echo no digits here'
 out=$(ex measure); [ "$(exs measure)" != 0 ] && grep -q 'printed no number' <<<"$out"; check "a metric with no number fails loudly" $?
 newproj higher none 'echo 5; exit 3'

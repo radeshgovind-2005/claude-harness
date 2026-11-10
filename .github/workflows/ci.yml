@@ -22,3 +22,9 @@ jobs:
         run: bash tests/validate.sh
       - name: Scaffold, profiles, hooks and discover lock
         run: bash tests/scaffold-test.sh
+      - name: explore (experiment loop)
+        run: bash tests/explore-test.sh
+      - name: lens (ax-check)
+        run: bash tests/lens-test.sh
+      - name: goal (state and Stop hook)
+        run: bash tests/goal-test.sh

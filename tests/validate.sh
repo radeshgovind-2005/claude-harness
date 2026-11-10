@@ -17,7 +17,7 @@ check() { if [ "$2" = 0 ]; then ok "$1"; else bad "$1"; fi; }  # name status
 command -v jq >/dev/null || { echo "Error: jq is required."; exit 1; }
 
 MKT=".claude-plugin/marketplace.json"
-SKILL_HOOK_ALLOW="discover"   # skills allowed to declare frontmatter hooks
+SKILL_HOOK_ALLOW="discover goal"   # skills allowed to declare frontmatter hooks (each is state-gated)
 
 echo "JSON syntax"
 while IFS= read -r f; do
@@ -97,9 +97,9 @@ while IFS=$'\t' read -r name src; do
     tools=$(sed -n 's/^tools:[[:space:]]*//p' <<<"$afm")
     [ -n "$tools" ]; check "agent '$an' declares a tools list" $?
     # A reviewer that must not edit gets no edit tools.
-    if [ "$an" = skeptic ]; then
-      ! grep -Eqi '(^|[ ,])(Edit|Write|MultiEdit|NotebookEdit)([ ,(]|$)' <<<"$tools"; check "agent 'skeptic' has no edit tools (tools: $tools)" $?
-    fi
+    case "$an" in skeptic|lens-reviewer)
+      ! grep -Eqi '(^|[ ,])(Edit|Write|MultiEdit|NotebookEdit)([ ,(]|$)' <<<"$tools"; check "agent '$an' has no edit tools (tools: $tools)" $? ;;
+    esac
   done
 
   # help must not call something "available" that does not exist, and must list every skill and agent.
