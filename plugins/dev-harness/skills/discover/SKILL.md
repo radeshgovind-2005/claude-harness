@@ -20,7 +20,7 @@ Discovery is a conversation, not a questionnaire. The user often does not yet kn
 ## 0. Prepare
 
 - If `docs/intent.md` exists with `status: decided`, show a 5-line summary and ask: refine it, or start over? Refining sets `status: discovering` again until the user decides.
-- If `docs/lessons.md` exists, read entries that mention discover, intent, or questions. Use them to ask better questions this time.
+- If `docs/lessons.md` exists, read the entries tagged `[discover]` first, then any others that mention discover, intent, or questions. Each one is a question that was missed or a guess that was wrong last time. Use them to ask better questions this time, and say which lesson shaped a question.
 - Read what the user gave: text, files, links. If they gave nothing, ask for a context dump: "Paste or point me at anything: the idea, brief, assignment text, links, files."
 
 ## 1. Infer
