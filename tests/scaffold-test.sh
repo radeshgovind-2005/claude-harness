@@ -138,6 +138,55 @@ d=$(newrepo); mkdir -p "$d/.claude/hooks"; printf '#!/usr/bin/env bash\nexit 0\n
 out=$(bash "$SC" "$d" guardrails --profile prototype 2>&1); st=$?
 [ $st -ne 0 ] && grep -q 'does not read harness.conf' <<<"$out"; check "old hook without harness.conf support: FAIL" $?
 
+echo "Parts (add <part>)"
+# files_of DIR: sorted project files, excluding .git
+files_of() { (cd "$1" && find . -path ./.git -prune -o -type f -print | sed 's|^\./||' | LC_ALL=C sort | tr '\n' ' '); }
+part_files() { # part -> expected file set (space separated, sorted, trailing space)
+  case "$1" in
+    lessons) echo "docs/lessons.md " ;;
+    reviewer) echo "docs/agents/INDEX.md " ;;
+    workflows) echo "docs/agents/first-workflow.md docs/workflow.md " ;;
+    rules) echo ".claude/rules/example-api.md " ;;
+    memory) echo ".gitignore CLAUDE.md docs/INDEX.md docs/architecture.md docs/conventions.md docs/experiments.md docs/lessons.md docs/progress.md " ;;
+  esac; }
+for part in lessons reviewer workflows rules memory; do
+  d=$(newrepo)
+  bash "$SC" "$d" files --part "$part" --profile product >/dev/null 2>&1; check "$part: exits 0" $?
+  [ "$(files_of "$d")" = "$(part_files "$part")" ]; check "$part: writes exactly its files" $?
+  before=$(snapshot "$d")
+  out=$(bash "$SC" "$d" files --part "$part" --profile product 2>&1)
+  ! grep -Eq '^  (add|merge|update|FAIL) ' <<<"$out" && [ "$before" = "$(snapshot "$d")" ]; check "$part: second run only skips" $?
+  d=$(newrepo); before=$(snapshot "$d")
+  bash "$SC" "$d" files --part "$part" --profile product --dry-run >/dev/null 2>&1
+  [ "$before" = "$(snapshot "$d")" ]; check "$part: dry run writes nothing" $?
+done
+for part in lessons reviewer workflows rules; do
+  bash "$SC" "$(newrepo)" files --part "$part" >/dev/null 2>&1; check "$part: needs no --profile" $?
+done
+bash "$SC" "$(newrepo)" files --part memory >/dev/null 2>&1; [ $? -ne 0 ]; check "memory: needs --profile (CLAUDE.md is rendered)" $?
+bash "$SC" "$(newrepo)" files --part bogus --profile product >/dev/null 2>&1; [ $? -ne 0 ]; check "unknown part fails" $?
+bash "$SC" "$(newrepo)" guardrails --part rules --profile product >/dev/null 2>&1; [ $? -ne 0 ]; check "--part with guardrails phase fails" $?
+bash "$SC" "$(newrepo)" files --part >/dev/null 2>&1; [ $? -ne 0 ]; check "--part without value fails" $?
+bash "$SC" "$(newrepo)" files --part lessons --profile enterprise >/dev/null 2>&1; [ $? -ne 0 ]; check "a bad --profile still fails when given to a part that does not need it" $?
+# existing user files survive a part run
+d=$(newrepo); mkdir -p "$d/docs"; echo "mine" > "$d/docs/lessons.md"; echo "my rules" > "$d/CLAUDE.md"
+bash "$SC" "$d" files --part memory --profile product >/dev/null 2>&1
+[ "$(cat "$d/docs/lessons.md")" = "mine" ] && [ "$(cat "$d/CLAUDE.md")" = "my rules" ]; check "memory: existing CLAUDE.md and lessons.md untouched" $?
+# add all == new: the parts together equal the full files phase, plus guardrails
+d1=$(newrepo); d2=$(newrepo)
+bash "$SC" "$d1" files --profile product >/dev/null 2>&1; bash "$SC" "$d1" guardrails --profile product >/dev/null 2>&1
+for part in memory lessons reviewer workflows rules; do bash "$SC" "$d2" files --part "$part" --profile product >/dev/null 2>&1; done
+bash "$SC" "$d2" guardrails --profile product >/dev/null 2>&1
+[ "$(snapshot "$d1")" = "$(snapshot "$d2")" ]; check "all parts + guardrails == files + guardrails" $?
+# routing and naming in the rendered CLAUDE.md
+for prof in prototype product assignment; do
+  d=$(newrepo); bash "$SC" "$d" files --profile "$prof" >/dev/null 2>&1
+  grep -q 'docs/progress.md' "$d/CLAUDE.md" && grep -q 'docs/experiments.md' "$d/CLAUDE.md"; check "$prof: CLAUDE.md routes progress.md and experiments.md" $?
+  grep -q 'dev-harness:skeptic' "$d/CLAUDE.md" && grep -q 'dev-harness:skeptic' "$d/docs/agents/INDEX.md"; check "$prof: CLAUDE.md and agents/INDEX.md name dev-harness:skeptic" $?
+  grep -q 'from v0\.' "$d/CLAUDE.md" "$d/docs/agents/INDEX.md"; [ $? -ne 0 ]; check "$prof: no stale 'from v0.x' in rendered templates" $?
+  grep -q 'docs/progress.md' "$d/docs/INDEX.md" && grep -q 'docs/experiments.md' "$d/docs/INDEX.md" || grep -q '`progress.md`' "$d/docs/INDEX.md"; check "$prof: docs/INDEX.md lists progress.md" $?
+done
+
 echo "Bad input"
 bash "$SC" "$W/missing" files --profile product >/dev/null 2>&1; [ $? -ne 0 ]; check "missing dir fails" $?
 bash "$SC" "$(newrepo)" files --profile enterprise >/dev/null 2>&1; [ $? -ne 0 ]; check "unknown profile fails" $?
