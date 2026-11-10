@@ -52,6 +52,7 @@ The `dev-harness:skeptic` agent ships with the plugin, so `reviewer` adds only t
    - For `guardrails` and `all`: turn on branch protection and require the `dev-harness-hooks` CI check on the Git host. Local hooks stop mistakes, not deliberate bypass. The `permissions.allow` rules apply only after the user trusts this folder; hooks, `deny` and `ask` rules apply right away.
    - For `reviewer` and `all`: the skeptic needs the dev-harness plugin installed wherever the project is used.
    - Any `<cmd>` placeholders left in `CLAUDE.md`.
+   - Any `note` line from the script: `memory` writes a router that points to `docs/workflow.md`, `docs/agents/first-workflow.md` and `docs/agents/INDEX.md`, which only `workflows` and `reviewer` add. Name the missing files and the part that adds each, and offer to add them.
 
 ## Rules
 

@@ -30,7 +30,7 @@ Every profile blocks force push, `--no-verify`, reading `.env`, `rm -rf /`, `cur
 
 | Part | Adds |
 |---|---|
-| `memory` | `CLAUDE.md` router, `docs/` (intent, architecture, conventions, lessons, progress, experiments) |
+| `memory` | `CLAUDE.md` router, `docs/INDEX.md`, architecture, conventions, lessons, progress, experiments. It routes to files that `workflows` and `reviewer` add, and says so. `docs/intent.md` comes from `discover` |
 | `lessons` | `docs/lessons.md` |
 | `reviewer` | `docs/agents/INDEX.md`, the guide to the skeptic |
 | `workflows` | `docs/workflow.md`, `docs/agents/first-workflow.md` |
@@ -40,7 +40,7 @@ Every profile blocks force push, `--no-verify`, reading `.env`, `rm -rf /`, `cur
 
 `/dev-harness:lesson <what went wrong>` records a correction in `docs/lessons.md`. A similar lesson is updated instead of duplicated, a lesson about discovery is tagged `[discover]` so the next `discover` asks better questions, and a rule only moves into `CLAUDE.md` if you say yes.
 
-`dev-harness:skeptic` is a plugin agent that tries to disprove a change. Give it only the goal and the diff. It reads, searches and runs your checks, and reports `STATUS`, issues with `file:line` and a failing scenario, and `NOT CHECKED`. It has no edit tools. It does have `Bash`, which Claude Code cannot restrict to read-only commands for a plugin agent, so "never edits" rests on its tool list and its instructions, plus your project's guardrail hooks when you have them.
+`dev-harness:skeptic` is a plugin agent that tries to disprove a change. Give it only the goal and the diff. It reads, searches and runs your checks, and reports `STATUS`, issues with `file:line` and a failing scenario, and `NOT CHECKED`. It has no edit tools. It does have `Bash`, which Claude Code cannot restrict to read-only commands for a plugin agent, so "never edits" is only partly enforced: the tool list removes Edit and Write, and its instructions forbid shell writes. Your guardrail hooks also run on its calls but protect only hooks, settings, secrets and `main`, not your source files. Check `git status` after a review.
 
 ## Install
 

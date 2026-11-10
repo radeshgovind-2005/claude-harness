@@ -18,7 +18,8 @@
 #
 # Existing files are skipped. An existing .claude/settings.json is merged only with
 # --merge-settings (union of permissions and hooks; the diff is always printed first).
-# Output: one line per path: add | skip | merge | update | ok | FAIL. Exit 1 on any FAIL.
+# Output: one line per path: add | skip | merge | update | ok | note | FAIL. Exit 1 on any FAIL.
+# "note" is advice (for example a routed file that another part adds), never a failure.
 
 set -u
 PLUGIN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -27,12 +28,12 @@ TPL="$PLUGIN/templates/project"
 die() { echo "FAIL    $*" >&2; exit 1; }
 
 DEST="${1:-}"; PHASE="${2:-}"; shift 2 2>/dev/null || true
-PROFILE=""; PART=""; VERIFY=""; VERIFY_SET=0; DRY=0; MERGE=0
+PROFILE=""; PART=""; PART_SET=0; VERIFY=""; VERIFY_SET=0; DRY=0; MERGE=0
 while [ $# -gt 0 ]; do
   case "$1" in --profile|--verify-cmd|--part) [ $# -ge 2 ] || die "$1 needs a value" ;; esac
   case "$1" in
     --profile) PROFILE="$2"; shift 2 ;;
-    --part) PART="$2"; shift 2 ;;
+    --part) PART="$2"; PART_SET=1; shift 2 ;;
     --verify-cmd) VERIFY="$2"; VERIFY_SET=1; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     --merge-settings) MERGE=1; shift ;;
@@ -43,6 +44,7 @@ done
 [ -n "$DEST" ] && [ -d "$DEST" ] || die "project dir not found: '$DEST'"
 DEST="$(cd "$DEST" && pwd)"
 case "$PHASE" in files|guardrails) ;; *) die "phase must be 'files' or 'guardrails'" ;; esac
+[ $PART_SET = 0 ] || [ -n "$PART" ] || die "--part needs a value"
 case "$PART" in
   "") ;;
   memory|lessons|reviewer|workflows|rules) [ "$PHASE" = files ] || die "--part only applies to the files phase" ;;
@@ -115,6 +117,15 @@ if [ "$PHASE" = files ]; then
   done < <(find "$TPL/docs" "$TPL/.claude/rules" -type f -not -name '.DS_Store' | sort)
 
   want memory && gitignore_line "CLAUDE.local.md"
+
+  # The memory part writes the router and docs/INDEX.md, which route to files owned by other parts.
+  if [ "$PART" = memory ]; then
+    for pair in "docs/workflow.md:workflows" "docs/agents/first-workflow.md:workflows" "docs/agents/INDEX.md:reviewer"; do
+      if [ ! -e "$DEST/${pair%%:*}" ] && [ ! -L "$DEST/${pair%%:*}" ]; then
+        say note "${pair%%:*} is routed from CLAUDE.md or docs/INDEX.md but does not exist; add it with: add ${pair##*:}"
+      fi
+    done
+  fi
   [ -z "$PART" ] && gitignore_line ".claude/settings.local.json"
 fi
 

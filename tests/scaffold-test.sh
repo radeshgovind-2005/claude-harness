@@ -184,10 +184,20 @@ for prof in prototype product assignment; do
   d=$(newrepo); bash "$SC" "$d" files --profile "$prof" >/dev/null 2>&1
   grep -q 'docs/progress.md' "$d/CLAUDE.md" && grep -q 'docs/experiments.md' "$d/CLAUDE.md"; check "$prof: CLAUDE.md routes progress.md and experiments.md" $?
   grep -q 'dev-harness:skeptic' "$d/CLAUDE.md" && grep -q 'dev-harness:skeptic' "$d/docs/agents/INDEX.md"; check "$prof: CLAUDE.md and agents/INDEX.md name dev-harness:skeptic" $?
-  grep -q 'from v0\.' "$d/CLAUDE.md" "$d/docs/agents/INDEX.md"; [ $? -ne 0 ]; check "$prof: no stale 'from v0.x' in rendered templates" $?
-  grep -q 'docs/progress.md' "$d/docs/INDEX.md" && grep -q 'docs/experiments.md' "$d/docs/INDEX.md" || grep -q '`progress.md`' "$d/docs/INDEX.md"; check "$prof: docs/INDEX.md lists progress.md" $?
+  stale=0; for f in CLAUDE.md docs/agents/INDEX.md docs/lessons.md docs/progress.md docs/experiments.md; do
+    [ -f "$d/$f" ] || stale=1; ! grep -q 'from v0\.' "$d/$f" || stale=1; done
+  [ $stale = 0 ]; check "$prof: rendered templates exist and have no stale 'from v0.x'" $?
+  grep -q '`progress.md`' "$d/docs/INDEX.md"; check "$prof: docs/INDEX.md lists progress.md" $?
+  grep -q '`experiments.md`' "$d/docs/INDEX.md"; check "$prof: docs/INDEX.md lists experiments.md" $?
 done
 
+bash "$SC" "$(newrepo)" files --part "" --profile product >/dev/null 2>&1; [ $? -ne 0 ]; check "empty --part value fails (not 'all parts')" $?
+# memory routes to files other parts own: it must say so; the full files phase must not
+d=$(newrepo); out=$(bash "$SC" "$d" files --part memory --profile product 2>&1)
+grep -q 'note .*docs/workflow.md.*add workflows' <<<"$out" && grep -q 'note .*docs/agents/INDEX.md.*add reviewer' <<<"$out"; check "memory: names the routed files it did not write" $?
+out=$(bash "$SC" "$d" files --part workflows 2>&1; bash "$SC" "$d" files --part reviewer 2>&1; bash "$SC" "$d" files --part memory --profile product 2>&1)
+! grep -q '^  note ' <<<"$out"; check "memory: no note once workflows and reviewer exist" $?
+out=$(bash "$SC" "$(newrepo)" files --profile product 2>&1); ! grep -q '^  note ' <<<"$out"; check "full files phase prints no note" $?
 # .gitignore: the files phase adds both personal files; guardrails alone adds the settings one
 d=$(newrepo); bash "$SC" "$d" files --profile prototype >/dev/null 2>&1
 grep -qxF ".claude/settings.local.json" "$d/.gitignore" && grep -qxF "CLAUDE.local.md" "$d/.gitignore"; check "files phase ignores both personal files" $?

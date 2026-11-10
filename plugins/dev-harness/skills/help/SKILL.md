@@ -33,7 +33,7 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 
 | Agent | Use it when | Status |
 |---|---|---|
-| `skeptic` | After a non-trivial change: tries to disprove it. Gets only the goal and the diff; reads and runs checks, never edits files. Call it as `dev-harness:skeptic` | available |
+| `skeptic` | After a non-trivial change: tries to disprove it. Gets only the goal and the diff; reads and runs checks, has no edit tools (its `Bash` can still write, so check `git status`). Call it as `dev-harness:skeptic` | available |
 | `architect` | Structure and design trade-offs | planned v0.5.0 |
 | `designer` | UI, UX, visual quality | planned v0.5.0 |
 | `tester` | Missing tests; checks tests can actually fail | planned v0.5.0 |

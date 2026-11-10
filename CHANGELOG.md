@@ -8,7 +8,7 @@ to detect updates.
 
 ### Added
 - `/dev-harness:add <part>`: add one part to an existing project. Parts: `guardrails`, `reviewer`, `lessons`, `memory`, `workflows`, `rules`, `all`. It reuses `scaffold.sh`, never overwrites, and detects the project's profile from `harness.conf` or `CLAUDE.md`.
-- `scaffold.sh files --part NAME` (`memory`, `lessons`, `reviewer`, `workflows`, `rules`). `--profile` is required only for the default and for `memory`. `--part` with the `guardrails` phase is an error. The `guardrails` phase now also adds `.claude/settings.local.json` to `.gitignore`.
+- `scaffold.sh files --part NAME` (`memory`, `lessons`, `reviewer`, `workflows`, `rules`). `--profile` is required only for the default and for `memory`. An empty `--part` value, or `--part` with the `guardrails` phase, is an error. The `guardrails` phase now also adds `.claude/settings.local.json` to `.gitignore`.
 - `dev-harness:skeptic`, a plugin agent: tries to disprove a change from only the goal and the diff, and reports `STATUS`, issues with `file:line` and a scenario, and `NOT CHECKED`. Its tools are `Read, Grep, Glob, Bash`, so it has no edit tools. `Bash` can still write; see Known limits.
 - `/dev-harness:lesson`: records a correction in `docs/lessons.md`, updates a similar lesson instead of duplicating it, tags lessons about discovery `[discover]`, and asks before promoting a rule to `CLAUDE.md`.
 - Templates `docs/progress.md` (handoff checkpoints) and `docs/experiments.md` (baseline and variants), routed from the `CLAUDE.md` router and `docs/INDEX.md`.
@@ -19,7 +19,8 @@ to detect updates.
 - `help` shows `add`, `lesson` and `skeptic` as available.
 
 ### Known limits
-- The skeptic's "never edits" is enforced by its tool list, which removes Edit and Write. Plugin agents cannot restrict `Bash` to read-only commands, so a skeptic could still write through the shell. The agent is told not to. In projects with the guardrails, the project's `guard-bash.sh` and `protect-paths.sh` also run on subagent tool calls.
+- The skeptic's "never edits" is only partly enforced. Its tool list removes Edit and Write, but plugin agents cannot restrict `Bash` to read-only commands, so a skeptic could still write through the shell (`echo x > src/a.ts`). The agent is told not to, and in a live test it refused an explicit instruction to. In projects with the guardrails, `guard-bash.sh` and `protect-paths.sh` also run on subagent tool calls, but they guard only hooks, settings, secrets, lockfiles and `main`, not ordinary source files. Test runs can leave caches (for example `__pycache__`). Check `git status` after a review.
+- `--part memory` writes a router and `docs/INDEX.md` that point at files owned by `workflows` and `reviewer`. The script prints a `note` naming each missing file and the part that adds it.
 
 ## 0.2.0 — 2026-11-10
 
