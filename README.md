@@ -1,112 +1,104 @@
 # claude-harness
 
-A Claude Code plugin marketplace with one plugin: **dev-harness**.
+A Claude Code plugin marketplace with one plugin, **dev-harness**. It sets up and runs software projects the way experienced Claude Code users do: it works out who the work is for before anything is built, gives the project memory and guardrails that fit the kind of work (a prototype, a product or an assignment), has fresh-context reviewers check changes, and turns every correction into a lesson so the mistake does not come back.
 
-dev-harness sets up and runs software projects the way experienced Claude Code users do. Before anything gets built, it works out what you're making, who it's for, and what matters most. It then scaffolds memory files and guardrails that suit the kind of project: a prototype, a product, or an assignment. Changes get reviewed by a fresh-context skeptic, and every correction is kept as a lesson so the mistake doesn't come back.
-
-> **Status: v0.5.0.** `help`, `discover`, `new`, `add`, `lesson`, `explore`, `lens`, `goal` and `showcase` work, with the agents `skeptic`, `lens-reviewer`, `architect`, `designer` and `tester`. What is left is v1.0.0 polish; see [CHANGELOG.md](CHANGELOG.md) and the roadmap below.
-
-## Use
-
-In any project folder:
-
-```
-/dev-harness:new a CLI that tracks my reading list
-```
-
-`new` runs `discover` first: Claude reflects back what it thinks the work is about, asks only what is missing, proposes 2–3 directions (one bold), and saves the decision to `docs/intent.md`. Then you pick a profile and it scaffolds the project. It never overwrites a file you already have.
-
-| Profile | For | `main` | Check on stop | Push asks |
-|---|---|---|---|---|
-| prototype | spikes, demos, learning | allowed | off | no |
-| product | real users or a team | blocked | typecheck + lint | yes |
-| assignment | graded or course work | allowed | tests | no |
-
-Every profile blocks force push, `--no-verify`, reading `.env`, `rm -rf /`, `curl | sh`, and edits to hooks, secrets and lockfiles. Shell commands that look like they change the guardrails (a redirect, `sed -i`, `curl -o`, `patch`, `git checkout`, and similar) ask you first; that is a best-effort list, not a sandbox. What lands in the project: `CLAUDE.md` (a router under 100 lines), `docs/` (intent, architecture, conventions, workflow, lessons, agent guide), `.claude/hooks/` with `harness.conf`, `.claude/settings.json`, and a CI workflow that tests the hooks.
-
-## Add one part, record lessons, review
-
-`/dev-harness:add <part>` adds one piece to a project you already have. It never overwrites.
-
-| Part | Adds |
-|---|---|
-| `memory` | `CLAUDE.md` router, `docs/INDEX.md`, architecture, conventions, lessons, progress, experiments. It routes to files that `workflows` and `reviewer` add, and says so. `docs/intent.md` comes from `discover` |
-| `lessons` | `docs/lessons.md` |
-| `reviewer` | `docs/agents/INDEX.md`, the guide to the skeptic |
-| `workflows` | `docs/workflow.md`, `docs/agents/first-workflow.md` |
-| `rules` | `.claude/rules/` |
-| `guardrails` | hooks, `harness.conf`, `.claude/settings.json`, CI (needs a profile) |
-| `all` | all of the above; guardrails go in last |
-
-`/dev-harness:lesson <what went wrong>` records a correction in `docs/lessons.md`. A similar lesson is updated instead of duplicated, a lesson about discovery is tagged `[discover]` so the next `discover` asks better questions, and a rule only moves into `CLAUDE.md` if you say yes.
-
-`dev-harness:skeptic` is a plugin agent that tries to disprove a change. Give it only the goal and the diff. It reads, searches and runs your checks, and reports `STATUS`, issues with `file:line` and a failing scenario, and `NOT CHECKED`. It has no edit tools. It does have `Bash`, which Claude Code cannot restrict to read-only commands for a plugin agent, so "never edits" is only partly enforced: the tool list removes Edit and Write, and its instructions forbid shell writes. Your guardrail hooks also run on its calls but protect only hooks, settings, secrets and `main`, not your source files. Check `git status` after a review.
-
-## Loops and review: `explore`, `lens`, `goal`
-
-`/dev-harness:explore <what to improve>`: make a number better, one change at a time. You agree a metric (a command that prints a number), a direction and an optional target. For each variant a script measures, **keeps it only if it beats the best so far**, or restores the tree, and logs the row in `docs/experiments.md`. It stops at the target or after 2 variants in a row with no gain. Claude proposes and implements; the number decides.
-
-`/dev-harness:lens [target]`: three fresh-context reviewers look at the work from outside: **UX** (the person who uses it), **DX** (the next developer) and **AX** (an AI agent working in the project). You get one ranked list with evidence. The AX reviewer is given script-checked facts (`ax-check.sh`: router under 100 lines, every route exists, hooks executable, placeholders left). It changes nothing.
-
-`/dev-harness:goal <what must be true>`: keep working until a command exits 0. A Stop hook runs the check each time Claude tries to finish, sends it back with the failure, and ends the loop on success or when the **rounds and minutes** budget is used up, after one final-report turn. A checkpoint goes to `docs/progress.md` every round.
-
-How `goal` differs from Claude Code's built-in `/goal`: the built-in one lets a small model judge from the conversation whether your condition is met, and a turn limit is only a request to that judge. Here the judge is your command's exit code and the budget is counted by the hook. There is **no token budget**: hooks get no token count (use `--max-budget-usd` for headless runs). The hook lives in the session where `goal` ran and is not re-registered on resume.
-
-## Show it off and ask the right reviewer: `showcase` and the role agents
-
-`/dev-harness:showcase [audience]` finds the most impressive part of the work and drafts a demo, a README section and talking points that match `docs/intent.md`. "Impressive" means it matters to whoever receives the work **and** it demonstrably works. It shortlists three candidates, picks one and says why the others lost, then **runs the demo steps** and labels every claim `VERIFIED` (a command ran), `READ` (`file:line`) or `UNVERIFIED`. Unverified claims stay out of the README text and are listed under `DO NOT CLAIM`. A script (`showcase-facts.sh`) supplies the facts: history, most-changed files, tests, measured gains from `docs/experiments.md`. It proposes only; the README is written after you say yes, and an existing section is never overwritten.
-
-Five reviewers, one question each, so you pick one instead of sending the same question to several:
-
-| Agent | Asks | Looks at | Its evidence |
-|---|---|---|---|
-| `skeptic` | Is this change wrong? | a diff | a failing scenario, the project's own checks |
-| `lens-reviewer` | What does this person hit? | a target, one angle (UX, DX, AX) | commands run as that person |
-| `architect` | Is the structure right, and what does each option cost? | modules and boundaries | counted imports and fan-in, 2-3 options, one recommendation |
-| `designer` | Is the interface well made? | a UI's source and screenshots | computed contrast, missing states and focus; `NOT A UI` if there is none |
-| `tester` | Would the tests catch a break? | the tests of some code | mutants made in a temporary copy, and which no test caught |
-
-Like the skeptic, none of them has edit tools, and none can be stopped from writing through `Bash`; check `git status` after a review. Call them as `dev-harness:architect` and so on.
+> **Status: v1.0.0.** Nine skills and five agents. From 1.0.0 the user-facing surface is stable: see [docs/stability.md](docs/stability.md). Works on macOS and Linux; Windows is not tested.
 
 ## Install
 
-In Claude Code:
+You need Claude Code, `git` and `jq`. In Claude Code:
 
 ```
 /plugin marketplace add radeshgovind-2005/claude-harness
 /plugin install dev-harness@claude-harness
 ```
 
-Then run `/dev-harness:help`.
+Then run `/dev-harness:help`: it prints the version and every skill and agent. Installing adds skills and agents only. The plugin ships no hooks, so nothing changes in your projects until you run a skill. Updates: `claude plugin update dev-harness@claude-harness`.
 
-Or from a shell:
+## The five-minute tour
 
-```bash
-claude plugin marketplace add radeshgovind-2005/claude-harness
+In a project folder:
+
+```
+/dev-harness:new a CLI that tracks my reading list
 ```
 
+1. **Discover.** Claude says back what it thinks the work is about (guesses labelled), asks only what is missing, proposes two or three directions (one bold), and saves the decision to `docs/intent.md`. No code is written yet.
+2. **Profile.** You pick how strict the guardrails are.
+3. **Scaffold.** It adds a short `CLAUDE.md` (a router that tells Claude which doc to read for which task), `docs/` (intent, architecture, conventions, lessons, progress), the guardrail hooks, and a CI check that the hooks still work. It never overwrites a file you have.
+
+| Profile | For | `main` | Check when Claude stops | `git push` asks |
+|---|---|---|---|---|
+| prototype | spikes, demos, learning | allowed | off | no |
+| product | real users or a team | blocked | typecheck and lint | yes |
+| assignment | graded or course work | allowed | the tests | no |
+
+Step by step, with the other profiles: [docs/getting-started.md](docs/getting-started.md).
+
+## Does it get in my way?
+
+No. The plugin itself ships no hooks. Guardrails exist only in a project where you ran `/dev-harness:new` or `/dev-harness:add guardrails`. Once they are there, the shell guard stops these (it exits 2 and tells Claude why, for example `BLOCKED: Force push is not allowed`):
+
+- force push (`--force`, `-f`, `--force-with-lease`, `+refspec`) and `git commit --no-verify`
+- `cat .env` and edits to `.env`, lockfiles, private keys and the hooks themselves
+- `curl ... | sh`, `rm -rf /` and `rm -rf ~/`
+
+Ordinary commands such as `rm -rf build` and `ls` pass through. Riskier ones (`git reset --hard`, `git clean -f`, shell writes to the hooks) ask you first.
+
+These are checked, not just claimed: the project's own `test-hooks.sh` copies the hooks into a temporary repository and tries each barrier under every profile (172 checks).
+
 ```bash
-claude plugin install dev-harness@claude-harness
+bash .claude/hooks/test-hooks.sh
 ```
 
-Updates: `claude plugin update dev-harness@claude-harness`. Third-party marketplaces don't auto-update by default.
+The hooks catch common mistakes, not a determined bypass, and the command list is best-effort. Also turn on branch protection and required CI on your Git host.
 
-## Design in one paragraph
+## What it gives you
 
-Skills and agents live in the plugin and work in every project. Strict hooks, like blocking edits on `main` or running checks before Claude stops, are copied **into** a project only when you pick a profile with `new` or `add`. The plugin itself ships no hooks, so it never blocks you in a project that didn't opt in. Rules that must never break are hooks, not lines in CLAUDE.md. Local hooks stop mistakes, not deliberate bypass, so also turn on branch protection and required CI on your Git host.
-
-## Roadmap
-
-| Version | Adds |
+| Skill | Use it when |
 |---|---|
-| 0.1.0 | Marketplace, plugin skeleton, `help` (done) |
-| 0.2.0 | `discover`, `new`, profiles, guardrail hooks copied into projects (done) |
-| 0.3.0 | `add`, `skeptic` agent, `lesson`, memory files (done) |
-| 0.4.0 | `explore`, `lens`, `goal` (done) |
-| 0.5.0 | `showcase`, `architect` / `designer` / `tester` agents (done) |
-| 1.0.0 | Full docs, examples, full test pass |
+| `new`, `add <part>` | set up a whole project, or add one part (guardrails, reviewer, lessons, memory, workflows, rules) |
+| `discover` | before building: who is it for, what matters, where to push. Writes `docs/intent.md` |
+| `lesson` | you corrected Claude. Records it, updates a similar lesson instead of duplicating, asks before promoting a rule to `CLAUDE.md` |
+| `explore` | make a number better, one change at a time. A script measures, keeps what improves, reverts what does not, logs it |
+| `goal` | keep working until a command exits 0, with a budget of rounds and minutes. Not the built-in `/goal`: the judge is your command, not a model |
+| `lens` | three fresh reviewers look from outside: the user (UX), the next developer (DX), an AI agent (AX) |
+| `showcase` | find the most impressive part and draft a demo, README section and talking points. Every claim is run or read, and labelled |
+| `help` | this list, with the installed version |
 
-The full design is in [docs/brief.md](docs/brief.md).
+Five agents, each with one question (call them as `dev-harness:<name>`). Pick the one whose question it is:
+
+| Agent | Asks | Its evidence |
+|---|---|---|
+| `skeptic` | Is this change wrong? | a failing scenario, the project's own checks |
+| `lens-reviewer` | What does this person hit? | commands run as that person |
+| `architect` | Is the structure right, and what does each option cost? | counted imports, 2-3 options |
+| `designer` | Is the interface well made? | computed contrast, missing states |
+| `tester` | Would the tests catch a break? | mutants made in a temporary copy |
+
+Every skill and agent in detail: [docs/reference.md](docs/reference.md). Real output from each, captured on toy projects: [examples/](examples/README.md).
+
+## Honest limits
+
+- **Hooks stop mistakes, not bypass.** They are not a sandbox.
+- **The reviewer agents have no edit tools, but their `Bash` can still write.** Check `git status` after a review.
+- **`goal` has no token budget** (hooks get no token count) and its hook is not re-registered after `--continue`.
+- **The `discover` lock covers file-edit tools only**, in the session where it ran.
+- **Not tested:** Windows, and a real interactive `discover` on a real idea by anyone but the author.
+
+The full list: [docs/how-it-works.md](docs/how-it-works.md).
+
+## Docs
+
+| | |
+|---|---|
+| [docs/getting-started.md](docs/getting-started.md) | install, the three profiles, day to day |
+| [docs/reference.md](docs/reference.md) | every skill, agent and script |
+| [docs/how-it-works.md](docs/how-it-works.md) | what code enforces and what text advises; platforms; limits |
+| [docs/stability.md](docs/stability.md) | what will not change in 1.x |
+| [docs/contributing.md](docs/contributing.md) | tests, adding a skill or agent, releasing, forking |
+| [docs/brief.md](docs/brief.md) | the original design brief |
+| [CHANGELOG.md](CHANGELOG.md) | what shipped when |
 
 ## Develop or fork
 
@@ -118,9 +110,7 @@ bash tests/validate.sh
 claude --plugin-dir ./plugins/dev-harness
 ```
 
-The first command validates both manifests, the layout rules, and runs `claude plugin validate`. The second loads the plugin from source for a session; run `/reload-plugins` after edits.
-
-To publish your fork, change `owner` in `.claude-plugin/marketplace.json` and the URLs in `plugin.json`. Keep the plugin name `dev-harness`.
+The first command validates the manifests, the layout rules and `help`, and runs `claude plugin validate`. The second loads the plugin from source; run `/reload-plugins` after an edit. All the test suites, how to add a skill or agent, and what to change in a fork (the owner name appears in several places): [docs/contributing.md](docs/contributing.md).
 
 ## License
 
