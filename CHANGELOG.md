@@ -4,6 +4,14 @@ All notable changes to the `dev-harness` plugin. Versions match `version` in
 `plugins/dev-harness/.claude-plugin/plugin.json`, which is what Claude Code uses
 to detect updates.
 
+## 1.0.1 — 2026-11-10
+
+A documentation fix. No skill, agent, script, hook or template changed.
+
+### Fixed
+- The 1.0.0 entry below said `tests/docs-test.sh` has 58 checks. It has 80 (the number was written before the fence-balance, `--help` and fork-guide checks were added). The v1.0.0 tag and GitHub release were already published with the old line, and a published tag is not moved, so this patch release carries the correction. The 1.0.0 release notes on GitHub already say 80.
+- `docs/progress.md` records the CI and install results for 1.0.0 (they were verified after the tag).
+
 ## 1.0.0 — 2026-11-10
 
 From this version the user-facing surface is stable and follows semantic versioning: `docs/stability.md` says exactly what is frozen. The skills and agents do what they did in 0.5.0; this release is documentation, examples, tests, platform checks, and the fixes that running the plugin on itself turned up.
