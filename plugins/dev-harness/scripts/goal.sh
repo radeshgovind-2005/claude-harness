@@ -14,6 +14,9 @@
 # Tokens are not a budget here: hooks get no token count. For headless runs use --max-budget-usd.
 # Exit 1 on any refusal, with a "FAIL" line.
 
+# -h / --help prints the comment block at the top of this file (the usage).
+case "${1:-}" in -h|--help) sed -n -E '2,/^([^#]|$)/{/^#/s/^# ?//p;}' "$0"; exit 0 ;; esac
+
 set -u
 die() { echo "FAIL    $*" >&2; exit 1; }
 command -v jq >/dev/null || die "jq is required (brew install jq / apt install jq)"

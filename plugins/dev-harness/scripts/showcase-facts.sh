@@ -7,6 +7,9 @@
 # It reads files and git history only; it runs none of the project's commands and writes nothing.
 # bash 3.2 compatible (macOS).
 
+# -h / --help prints the comment block at the top of this file (the usage).
+case "${1:-}" in -h|--help) sed -n -E '2,/^([^#]|$)/{/^#/s/^# ?//p;}' "$0"; exit 0 ;; esac
+
 DEST="${1:-.}"
 [ -d "$DEST" ] || { echo "FAIL    project dir not found: $DEST" >&2; exit 1; }
 cd -- "$DEST" || exit 1

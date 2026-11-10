@@ -1,6 +1,6 @@
 {
   "name": "dev-harness",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Set up and run any project the way experienced Claude Code users do: discover intent first, scaffold memory and guardrails per profile, review with a fresh-context skeptic, and turn mistakes into lessons.",
   "author": {
     "name": "Radesh Govind",

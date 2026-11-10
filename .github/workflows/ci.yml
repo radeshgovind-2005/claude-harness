@@ -6,7 +6,11 @@ on:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,17 +20,27 @@ jobs:
         # Validation runs locally and needs no login. If install fails, the
         # validator step below fails because REQUIRE_CLAUDE=1.
         run: npm install -g @anthropic-ai/claude-code
+      - name: Tools
+        run: |
+          command -v jq && jq --version
+          /bin/bash --version | head -n1
       - name: Validate marketplace and plugin
         env:
           REQUIRE_CLAUDE: "1"
-        run: bash tests/validate.sh
+        run: /bin/bash tests/validate.sh
+      - name: Project hook self-test (the hooks that are copied into projects)
+        run: /bin/bash plugins/dev-harness/templates/project/.claude/hooks/test-hooks.sh
       - name: Scaffold, profiles, hooks and discover lock
-        run: bash tests/scaffold-test.sh
+        # About 4 minutes: Ubuntu only. The other suites run on both systems.
+        if: matrix.os == 'ubuntu-latest'
+        run: /bin/bash tests/scaffold-test.sh
       - name: explore (experiment loop)
-        run: bash tests/explore-test.sh
+        run: /bin/bash tests/explore-test.sh
       - name: lens (ax-check)
-        run: bash tests/lens-test.sh
+        run: /bin/bash tests/lens-test.sh
       - name: goal (state and Stop hook)
-        run: bash tests/goal-test.sh
+        run: /bin/bash tests/goal-test.sh
       - name: showcase (facts script and role agents)
-        run: bash tests/showcase-test.sh
+        run: /bin/bash tests/showcase-test.sh
+      - name: docs, examples, line endings, icon
+        run: /bin/bash tests/docs-test.sh
