@@ -88,8 +88,34 @@ while IFS=$'\t' read -r name src; do
 
   for a in "$src"/agents/*.md; do
     [ -f "$a" ] || continue
-    has_description "$a"; check "agent '$(basename "$a" .md)' has closed frontmatter and description" $?
+    an=$(basename "$a" .md)
+    has_description "$a"; check "agent '$an' has closed frontmatter and description" $?
+    afm=$(frontmatter "$a" 2>/dev/null)
+    # Plugin agents ignore hooks, mcpServers and permissionMode, so they must not pretend to use them.
+    ! grep -Eq '^(hooks|mcpServers|permissionMode):' <<<"$afm"; check "agent '$an' sets no hooks, mcpServers or permissionMode (ignored for plugin agents)" $?
+    # An agent must list its tools. A missing list would inherit every tool, edit tools included.
+    tools=$(sed -n 's/^tools:[[:space:]]*//p' <<<"$afm")
+    [ -n "$tools" ]; check "agent '$an' declares a tools list" $?
+    # A reviewer that must not edit gets no edit tools.
+    if [ "$an" = skeptic ]; then
+      ! grep -Eqi '(^|[ ,])(Edit|Write|MultiEdit|NotebookEdit)([ ,(]|$)' <<<"$tools"; check "agent 'skeptic' has no edit tools (tools: $tools)" $?
+    fi
   done
+
+  # help must not call something "available" that does not exist, and must list every skill and agent.
+  help="$src/skills/help/SKILL.md"
+  if [ -f "$help" ]; then
+    avail=$(awk -F'|' '/^\| `/ { st=$(NF-1); gsub(/ /, "", st); if (st == "available") { h=$2; gsub(/[` ]/, "", h); sub(/<.*/, "", h); print h } }' "$help")
+    missing=""
+    for hn in $avail; do
+      [ -f "$src/skills/$hn/SKILL.md" ] || [ -f "$src/agents/$hn.md" ] || missing="$missing $hn"
+    done
+    [ -n "$avail" ] && [ -z "$missing" ]; check "help: every skill/agent marked available exists${missing:+ (missing:$missing)}" $?
+    unlisted=""
+    for d in "$src"/skills/*/; do hn=$(basename "$d"); grep -q "^| \`$hn[ \`<]" "$help" || unlisted="$unlisted $hn"; done
+    for f in "$src"/agents/*.md; do [ -f "$f" ] || continue; hn=$(basename "$f" .md); grep -q "^| \`$hn\`" "$help" || unlisted="$unlisted $hn"; done
+    [ -z "$unlisted" ]; check "help lists every skill and agent${unlisted:+ (not listed:$unlisted)}" $?
+  fi
 
   # kebab-case: lowercase letters, digits, hyphens (dots for extensions).
   # Allowed exceptions: names Claude Code or convention require (SKILL.md, CLAUDE.md,
@@ -121,6 +147,10 @@ if command -v claude >/dev/null; then
     pname=$(jq -r .name "$src/.claude-plugin/plugin.json")
     det=$(claude --plugin-dir "$src" plugin details "$pname" 2>&1)
     grep -Eq '^[[:space:]]*Hooks \(0\)' <<<"$det"; check "claude plugin details: $pname loads Hooks (0)" $?
+    nsk=$(find "$src/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')
+    nag=$(find "$src/agents" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+    grep -Eq "^[[:space:]]*Skills \($nsk\)" <<<"$det"; check "claude plugin details: $pname loads Skills ($nsk)" $?
+    grep -Eq "^[[:space:]]*Agents \($nag\)" <<<"$det"; check "claude plugin details: $pname loads Agents ($nag)" $?
   done
 elif [ "${REQUIRE_CLAUDE:-0}" = 1 ]; then
   bad "claude CLI not found and REQUIRE_CLAUDE=1"
