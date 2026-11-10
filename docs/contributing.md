@@ -81,7 +81,7 @@ A headless `-p` run cannot answer `AskUserQuestion` or approve an `Edit` or a `B
 
 To publish your own copy under your own name:
 
-1. Replace `radeshgovind-2005` everywhere: `grep -rn radeshgovind-2005 .` lists the place in `.claude-plugin/marketplace.json`, `plugin.json` (`author`, `homepage`, `repository`), `README.md`, `docs/`, `plugins/dev-harness/skills/help/SKILL.md` and the tests.
+1. Replace `radeshgovind-2005` everywhere: `grep -rn radeshgovind-2005 .` lists the place in `.claude-plugin/marketplace.json`, `plugin.json` (`author`, `homepage`, `repository`), `README.md`, `docs/`, `plugins/dev-harness/skills/help/SKILL.md`.
 2. Keep the plugin name `dev-harness` if you want the `/dev-harness:...` commands to stay the same. If you rename the plugin or the marketplace (`claude-harness`), every install command and the `dev-harness@claude-harness` form changes with it.
 3. Run `bash tests/validate.sh`, then install your fork from your repository in an isolated config before you tell anyone.
 
