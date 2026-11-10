@@ -74,7 +74,7 @@ safety() { # label
   check "[$1] overwrite settings.json asks"      0 "$(asks "printf '{}' > .claude/settings.json")"
   check "[$1] reading settings.json is allowed"  0 "$(run 'cat .claude/settings.json')"
   check "[$1] read with 2>/dev/null does not ask"   1 "$(asks 'cat .claude/hooks/verify.sh 2>/dev/null')"
-  check "[$1] read with 2>&1 does not ask"          1 "$(asks 'ls .claude/hooks 2>&1 | head')"
+  check "[$1] read with 2>&1 does not ask"          1 "$(asks 'ls .claude/hooks/ 2>&1 | head')"
   check "[$1] read with &>/dev/null does not ask"   1 "$(asks 'cat .claude/settings.json &>/dev/null')"
   check "[$1] read with > /dev/null does not ask"   1 "$(asks 'cat .claude/settings.json > /dev/null')"
   check "[$1] redirect into a hook still asks"      0 "$(asks 'echo x > .claude/hooks/y.sh')"
