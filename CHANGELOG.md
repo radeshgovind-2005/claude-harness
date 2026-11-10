@@ -6,21 +6,39 @@ to detect updates.
 
 ## 1.0.0 — 2026-11-10
 
-From this version the user-facing surface is stable and follows semantic versioning: see `docs/stability.md` for exactly what is frozen. This release changes no skill or agent behaviour; it is documentation, tests and polish.
+From this version the user-facing surface is stable and follows semantic versioning: `docs/stability.md` says exactly what is frozen. The skills and agents do what they did in 0.5.0; this release is documentation, examples, tests, platform checks, and the fixes that running the plugin on itself turned up.
 
 ### Added
-- Docs: `docs/getting-started.md` (install, the three profiles, a walkthrough for each), `docs/reference.md` (every skill, agent and script), `docs/how-it-works.md` (what code enforces and what text advises, platforms, all known limits in one place), `docs/stability.md`, `docs/contributing.md` (tests, adding a skill or agent, releasing, forking).
-- `examples/`: real output from each of the main skills and agents, captured from headless runs on toy projects, each with a header that names the plugin version, the command and how it was run.
-- `tests/docs-test.sh`: local Markdown links resolve, the README status equals `plugin.json`, every skill and agent in `help` is in `reference.md`, no stale "planned" text, examples carry their header, shell files have LF endings, the icon is a valid square PNG.
-- `tests/run-all.sh`: every suite, one summary, non-zero on any failure (`--fast` skips the 4-minute scaffold suite).
+- Docs: `docs/getting-started.md` (install, the three profiles, a walkthrough for each), `docs/reference.md` (every skill, agent and script), `docs/how-it-works.md` (what code enforces and what text advises, platforms, every known limit in one place), `docs/stability.md`, `docs/contributing.md` (tests, adding a skill or agent, releasing, forking).
+- `examples/`: 12 captured runs of the main skills and agents on toy projects (and two on this repository), each with a header naming the plugin version, the date, the command and how it was run. Nothing is hand-written; paths are shortened and any trimmed line is said so.
+- `tests/docs-test.sh` (58 checks): relative links resolve; the README status and counts match the plugin; every skill and agent is in `reference.md`, `stability.md` and the README; no stale "planned" text; the fork guide names every file that carries the owner or author name; `CLAUDE.md` passes `ax-check.sh` (the repository dogfoods its own AX check); `progress.md` has a checkpoint for the current version; every script answers `--help`; examples carry their header; LF line endings; the icon is a valid square PNG.
+- `tests/run-all.sh`: every suite, one summary, non-zero on any failure; `--fast` skips the 4-minute scaffold suite and says it did.
 - CI runs on Ubuntu and macOS (bash 3.2); the scaffold suite stays on Ubuntu only.
 - `.gitattributes` keeps LF line endings for scripts, JSON, YAML and Markdown, so a Windows checkout cannot break the hook shebangs.
 - A repository `CLAUDE.md` router for contributors and for an AI agent working here.
 - A plugin icon (`.claude-plugin/icon.png`), a plain generated glyph. `claude plugin validate --profile directory` now has no warning.
+- `--help` on `scaffold.sh`, `explore.sh`, `goal.sh`, `ax-check.sh` and `showcase-facts.sh`.
+
+### Fixed (found by running `lens` and `showcase` on this repository)
+- **The guard hooks failed open without `jq`.** `guard-bash.sh` and `protect-paths.sh` printed `jq: command not found` and let every command and edit through. They now block and say how to install `jq`. `verify.sh` no longer needs `jq` for its loop guard.
+- **Main-branch protection did nothing in a repository with no commit yet** (`rev-parse --abbrev-ref HEAD` fails there). It now reads the branch with `symbolic-ref`.
+- **`git commit -n`, the short form of `--no-verify`, was not blocked** (also `-nm`, `-anm`, `-m x -n`). It is now. A commit message that contains ` -n` as text is blocked too and must be reworded.
+- The hard blocks (`--no-verify`, force push, recursive delete, piping a download into a shell, changing the hooks path) now say what to do instead.
+- The project's `test-hooks.sh` grows from 172 to 199 checks, each new behaviour proven by a mutant.
+- `validate.sh` checked "no edit tools" only for five named agents. It now checks every agent (`AGENT_EDIT_ALLOW` is the explicit exception list, and it is empty).
 
 ### Changed
-- README is now a front door: install first, a five-minute tour, "Does it get in my way?", the skill and agent tables, honest limits, and links. Found by running `lens` and `showcase` on this repository.
+- README is now a front door: install first, a five-minute tour, "Does it get in my way?", the skill and agent tables, honest limits, links.
 - `BRIEF.md` moved to `docs/brief.md`.
+- `getting-started.md` and `how-it-works.md` say that changing a profile later means editing both `harness.conf` and the `ask` list in `.claude/settings.json`.
+
+### Verified in live runs (headless, toy projects; see the checkpoint in `docs/progress.md`)
+- The `assignment` profile end to end: `new`, then a deliberate break, which the project's Stop hook blocked.
+- A three-turn `discover` across `--continue` with prepared answers (not a real conversation on a real idea).
+- The 8-block cap and `--continue` of a `goal` session: the session ended on its own after 9 Stop events with the goal still `active`, and the hook was not registered again after `--continue`.
+
+### Known limits
+All of them are collected in `docs/how-it-works.md`. Still open: a real interactive `discover` on a real idea; native Windows; `designer` on a rendered screenshot; every example is a single run on a toy project.
 
 ## 0.5.0 — 2026-11-10
 

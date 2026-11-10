@@ -2,6 +2,46 @@
 
 Handoff notes so a new session can resume. Newest checkpoint first.
 
+## Checkpoint v1.0.0 — 2026-11-10
+
+### Done
+- Stability promise (`docs/stability.md`): what is frozen in 1.x, what is not, what counts as breaking.
+- Docs: `getting-started`, `reference`, `how-it-works` (with every known limit), `stability`, `contributing`. README is a front door (install first, a tour, "Does it get in my way?", tables, limits, links). `BRIEF.md` moved to `docs/brief.md`.
+- `examples/`: 12 captured runs with headers (version, date, command, how it was run).
+- Tests: `docs-test.sh` (58), `run-all.sh`; CI on Ubuntu and macOS; `.gitattributes`; icon; `--help` on five scripts; `validate.sh` now checks every agent for edit tools.
+- Dogfood: this repository got a `CLAUDE.md` router, passes `ax-check.sh`, and was reviewed with the plugin's own `lens` and `showcase`. Their findings drove the README, the docs and four fixes to the guard hooks (below).
+- Fixes in the shipped hooks (behaviour changes, each proven by a mutant): fail closed without `jq`; main protection before the first commit; `git commit -n`; "Instead:" on hard blocks; `verify.sh` loop guard without `jq`.
+- Version 1.0.0, CHANGELOG, `help` (no "planned" rows).
+
+### Verified
+- `tests/run-all.sh`: validate 57, docs 58, explore 83, lens 36, goal 60, showcase 131, scaffold 195 (the project hook tests run inside every scaffold: 199 per scaffold, was 172). shellcheck clean at warning level on every script.
+- `claude plugin validate --strict` and `--profile directory` both pass with no warning.
+- Mutation checks, one at a time in copies: 27 mutants of `docs-test.sh` (broken link, wrong README version or count, dropped skill or agent in `reference.md`, `stability.md` or the README, stale "planned" text, a `CLAUDE.md` route that does not exist, a CR in a script, missing `.gitattributes`, a non-square or missing icon, an example without its header or index entry, an owner name the fork guide does not list); 20 mutants of the hook changes (the `-n` rule and its false positives, `symbolic-ref`, the `jq` guard and its message, the `verify.sh` loop guard, each "Instead:" message); 3 of `run-all.sh` (a broken suite fails the run, a suite that prints no result fails, `--fast` says it skipped one). Survivors found and fixed: the stability check that matched a name anywhere in the file, the `jq` message check that matched the word "install" in "not installed".
+- Live headless runs with `--plugin-dir` (the 12 examples are the captures):
+  - **assignment profile end to end:** `new` wrote the files and the hooks (172 hook tests passed then), then in a fresh session Claude changed `add` to `a - b` as asked and tried to finish; `verify.sh` ran `make test`, blocked, and Claude did not edit the test to make it pass: it stopped and asked.
+  - **discover in three turns** across `--continue` with prepared answers: reflect, three questions, three directions with one bold, decision, `docs/intent.md` with `status: decided` and unanswered questions kept as open questions.
+  - **goal:** met in one round; and with an impossible check and a model told to answer "ok" with no tool, the session ended on its own after the hook counted 9 Stop events (two runs: 14 turns, 19 s, USD 0.14 of a USD 1 budget, `subtype: success`, empty result), the goal stayed `active`, `--continue` did not register the hook again (the round counter did not move), and `goal.sh stop` cleared it. This matches the documented 8-block cap and the stale-goal limit; it is two runs, not a guarantee of the count.
+  - **new (product), explore, showcase, tester, architect, designer:** as in the examples.
+  - The folder-trust behaviour of `permissions.allow` was seen in the headless runs ("ignoring 8 permissions.allow entries ... workspace has not been trusted"); hooks and deny rules were active.
+
+### Dogfood findings
+- **First `lens` and `showcase` on this repository** (before the docs): `CLAUDE.md` routed to four docs that did not exist; usage came before install in the README; the fork guide was incomplete; there was no resume block in `progress.md`; the "never push" rules were text only; the pick for the README front page was the opt-in guardrails (now "Does it get in my way?").
+- **Second `lens` on the finished repository** (9 top findings): fixed: `progress.md` lacked a v1.0.0 checkpoint (and nothing checked it: now a test); the "no edit tool" rule covered only five named agents; `CLAUDE.md` claimed `rm -rf "$VAR"` is blocked here (reworded: that is the author's own setup); the README described 1.0.0 while GitHub `main` was 0.5.0 (resolved by pushing); hooks failing open without `jq`; main protection before the first commit; `git commit -n`; hard-block messages without an alternative; the docs suites missing from the `CLAUDE.md` commands and the contributing checklists; the profile-change instructions; timings and the fork list. Documented, not fixed: the `guard-bash.sh` verb list stays best-effort; this repository still has no guardrail hooks of its own (the lens flagged the text-only rules; they are now labelled as text).
+
+### Not verified
+- **A real interactive `discover` conversation on a real idea** (the author has not run one; the three-turn run used prepared answers).
+- **Native Windows.** `.gitattributes` keeps LF; nothing was run on Windows.
+- **`designer` on a rendered screenshot**, and every example is a single headless run on a toy project.
+- **CI on macOS** (new in 1.0.0; first run is after the push) and installing 1.0.0 from GitHub.
+- **The update path** from 0.5.0 to 1.0.0 with `claude plugin update`.
+- Carried over: the README `Edit` path with a real "yes" in `showcase`; whether `/reload-plugins` is needed after install.
+
+### Skeptic review
+(filled in after the review)
+
+### Next
+- After 1.0.0: feedback from real use. The most valuable single thing is a real `discover` on a real idea, then `/dev-harness:lesson` for what it missed.
+
 ## Checkpoint v0.5.0 — 2026-11-10
 
 ### Done
