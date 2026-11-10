@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-harness",
+  "description": "Practice-layer plugins for Claude Code: intent discovery, memory, guardrails, fresh-context review, and lessons.",
+  "owner": {
+    "name": "Radesh Govind",
+    "url": "https://github.com/radeshgovind-2005"
+  },
+  "plugins": [
+    {
+      "name": "dev-harness",
+      "source": "./plugins/dev-harness",
+      "description": "Set up and run any project the way experienced Claude Code users do: discover intent first, scaffold memory and guardrails per profile, review with a fresh-context skeptic, and turn mistakes into lessons.",
+      "category": "development",
+      "tags": ["workflow", "guardrails", "memory", "review", "scaffolding"]
+    }
+  ]
+}

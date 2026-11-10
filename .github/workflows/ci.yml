@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code CLI (for `claude plugin validate`)
+        # Validation runs locally and needs no login. If install fails, the
+        # validator step below fails because REQUIRE_CLAUDE=1.
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate marketplace and plugin
+        env:
+          REQUIRE_CLAUDE: "1"
+        run: bash tests/validate.sh
