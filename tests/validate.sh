@@ -112,7 +112,7 @@ while IFS=$'\t' read -r name src; do
     done
     [ -n "$avail" ] && [ -z "$missing" ]; check "help: every skill/agent marked available exists${missing:+ (missing:$missing)}" $?
     unlisted=""
-    for d in "$src"/skills/*/; do hn=$(basename "$d"); grep -q "^| \`$hn[ \`<]" "$help" || unlisted="$unlisted $hn"; done
+    for d in "$src"/skills/*/; do hn=$(basename "$d"); grep -q "^| \`${hn}[ \`<]" "$help" || unlisted="$unlisted $hn"; done
     for f in "$src"/agents/*.md; do [ -f "$f" ] || continue; hn=$(basename "$f" .md); grep -q "^| \`$hn\`" "$help" || unlisted="$unlisted $hn"; done
     [ -z "$unlisted" ]; check "help lists every skill and agent${unlisted:+ (not listed:$unlisted)}" $?
   fi
