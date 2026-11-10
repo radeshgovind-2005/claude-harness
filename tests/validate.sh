@@ -30,8 +30,23 @@ n=$(jq '.plugins | length' "$MKT"); [ "${n:-0}" -gt 0 ]; check "lists at least o
 v=$(jq '[.plugins[] | select(has("version"))] | length' "$MKT")
 [ "$v" = 0 ]; check "no version in marketplace entries (plugin.json owns it)" $?
 
+# Every entry must have a local "./" string source; otherwise this script cannot check it.
+nonlocal=$(jq -r '.plugins[] | select((.source | type) != "string" or (.source | startswith("./") | not)) | .name' "$MKT")
+[ -z "$nonlocal" ]; check "every plugin source is a local ./ path${nonlocal:+ (not checkable: $nonlocal)}" $?
+
+# frontmatter FILE: print lines between the opening and closing '---'; exit 1 if either is missing.
+frontmatter() {
+  awk 'NR==1 { if ($0 != "---") exit 1; next } /^---$/ { closed=1; exit } { print } END { exit !closed }' "$1"
+}
+# has_description FILE: closed frontmatter with a non-empty description: line.
+has_description() {
+  local fm; fm=$(frontmatter "$1") || return 1
+  grep -Eq '^description:[[:space:]]*[^[:space:]]' <<<"$fm"
+}
+
 plugins=()
 while IFS=$'\t' read -r name src; do
+  [ -n "$src" ] || continue
   plugins+=("$src")
   echo "Plugin '$name' ($src)"
   pj="$src/.claude-plugin/plugin.json"
@@ -42,22 +57,30 @@ while IFS=$'\t' read -r name src; do
   extra=$(find "$src/.claude-plugin" -mindepth 1 -not -name plugin.json -not -name 'icon.png')
   [ -z "$extra" ]; check ".claude-plugin/ holds only plugin.json${extra:+ (found: $extra)}" $?
 
-  [ ! -e "$src/hooks" ]; check "plugin ships no hooks/ (strict hooks go into projects only)" $?
+  # The plugin ships no hooks in any form: hooks/ folder, any hooks.json,
+  # a "hooks" key in plugin.json, or hooks: in skill/agent frontmatter.
+  hookfiles=$(find "$src" -name hooks.json -o -type d -name hooks)
+  [ -z "$hookfiles" ]; check "no hooks/ folder or hooks.json in plugin${hookfiles:+ (found: $hookfiles)}" $?
+  if jq -e 'has("hooks")' "$pj" >/dev/null 2>&1; then bad "plugin.json declares no hooks"; else ok "plugin.json declares no hooks"; fi
+  fmhooks=$(find "$src" -name '*.md' -path '*/skills/*' -o -name '*.md' -path '*/agents/*' | while IFS= read -r m; do
+    frontmatter "$m" 2>/dev/null | grep -Eq '^hooks:' && echo "$m"; done)
+  [ -z "$fmhooks" ]; check "no hooks: in skill/agent frontmatter${fmhooks:+ (found: $fmhooks)}" $?
 
   for d in "$src"/skills/*/; do
     [ -d "$d" ] || continue
     s="${d%/}"; sn=$(basename "$s")
-    if [ -f "$s/SKILL.md" ] && head -1 "$s/SKILL.md" | grep -qx -- '---' \
-       && sed -n '2,/^---$/p' "$s/SKILL.md" | grep -Eq '^description:[[:space:]]*[^[:space:]]'; then
-      ok "skill '$sn' has SKILL.md with description"
+    # Exact-case name check: macOS file systems are case-insensitive, Linux is not.
+    if find "$s" -maxdepth 1 -type f -name SKILL.md | grep -q . \
+       && has_description "$s/SKILL.md"; then
+      ok "skill '$sn' has SKILL.md with closed frontmatter and description"
     else
-      bad "skill '$sn' has SKILL.md with frontmatter description"
+      bad "skill '$sn' has SKILL.md (exact case) with closed frontmatter and description"
     fi
   done
 
   for a in "$src"/agents/*.md; do
     [ -f "$a" ] || continue
-    sed -n '2,/^---$/p' "$a" | grep -Eq '^description:'; check "agent '$(basename "$a" .md)' has description" $?
+    has_description "$a"; check "agent '$(basename "$a" .md)' has closed frontmatter and description" $?
   done
 
   # kebab-case: lowercase letters, digits, hyphens (dots for extensions).
@@ -67,7 +90,8 @@ while IFS=$'\t' read -r name src; do
     -not -name '.*' -not -name '.DS_Store' \
     | while IFS= read -r p; do b=$(basename "$p"); [[ "$b" =~ ^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*$ ]] || echo "$p"; done)
   [ -z "$badnames" ]; check "all file and folder names are kebab-case${badnames:+ (bad: $badnames)}" $?
-done < <(jq -r '.plugins[] | [.name, .source] | @tsv' "$MKT")
+done < <(jq -r '.plugins[] | select(.source | type == "string") | [.name, .source] | @tsv' "$MKT")
+[ "${#plugins[@]}" = "${n:-0}" ]; check "checked every plugin entry (${#plugins[@]} of ${n:-0})" $?
 
 echo "Claude Code validator"
 if command -v claude >/dev/null; then

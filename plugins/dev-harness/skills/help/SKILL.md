@@ -12,8 +12,10 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 
 ## Start here
 
-- New project or new idea: `/dev-harness:new` — it runs `discover` first, then scaffolds.
-- Existing project: `/dev-harness:discover`, then `/dev-harness:add all` (or one part).
+Only `help` works in this version. Once they ship:
+
+- New project or new idea: `/dev-harness:new` (v0.2.0). It runs `discover` first, then scaffolds.
+- Existing project: `/dev-harness:discover` (v0.2.0), then `/dev-harness:add all` (v0.3.0).
 
 ## Skills
 
@@ -38,11 +40,11 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 | `designer` | UI, UX, visual quality | planned v0.5.0 |
 | `tester` | Missing tests; checks tests can actually fail | planned v0.5.0 |
 
-## How it works
+## How it works (from v0.2.0)
 
 - Skills and agents live in the plugin and work in every project.
-- Strict hooks (block edits on `main`, run checks on stop) are copied **into** a project only when you choose a profile in `new` or `add`. The plugin itself ships no hooks.
-- Safety blocks (force push, reading `.env`, `rm -rf /`) are on in every profile.
+- Strict hooks (block edits on `main`, run checks on stop) will be copied **into** a project only when you choose a profile in `new` or `add`. The plugin itself ships no hooks.
+- Safety blocks (force push, reading `.env`, `rm -rf /`) will be on in every profile.
 - Local hooks stop mistakes, not deliberate bypass. Use branch protection and required CI on your Git host too.
 
 Source and issues: https://github.com/radeshgovind-2005/claude-harness
