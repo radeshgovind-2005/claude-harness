@@ -163,6 +163,7 @@ grep -q 'NOT A UI' "$P/agents/designer.md" && grep -q 'stop and report' "$P/agen
 grep -q '^STATUS: TESTS CATCH BREAKS | GAPS FOUND$' "$P/agents/tester.md"; check "tester: fixed STATUS line" $?
 grep -q 'mktemp -d' "$P/agents/tester.md" && grep -q 'Never in the real project' "$P/agents/tester.md"; check "tester: mutates only in a temporary copy" $?
 grep -q 'at most 6 mutants' "$P/agents/tester.md"; check "tester: mutants are bounded" $?
+grep -q 'PYTHONDONTWRITEBYTECODE=1' "$P/agents/tester.md" && grep -q 'stale cache' "$P/agents/tester.md"; check "tester: keeps stale bytecode from hiding a mutant (found in a live run)" $?
 grep -q '^MUTANTS' "$P/agents/tester.md" && grep -q 'SURVIVED' "$P/agents/tester.md"; check "tester: survivors are in the format" $?
 for a in architect designer tester skeptic lens-reviewer; do
   grep -q "\`$a\`" "$P/skills/help/SKILL.md"; check "help names $a" $?
