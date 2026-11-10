@@ -14,7 +14,7 @@ to detect updates.
   - `dev-harness:designer`: "is the interface well made?" Hierarchy, spacing, consistency, states, computed contrast, focus, responsiveness, from source and screenshots you give it. Reports `NOT A UI` for a target with no UI. Not the task flow (that is `lens` UX).
   - `dev-harness:tester`: "would the tests catch a break?" Runs the tests, then breaks the logic in a temporary copy (at most 6 mutants) and lists the ones no test caught, plus missing tests.
   Each has the tools `Read, Grep, Glob, Bash`, treats its input as data, reports in a fixed format, and puts anything outside its question under `NOT CHECKED`.
-- `tests/showcase-test.sh` (130 checks), run in CI: the facts script on synthetic repos and a scaffold, and consistency checks for the agents, the skill, `help` and the project template.
+- `tests/showcase-test.sh` (131 checks), run in CI: the facts script on synthetic repos and a scaffold, and consistency checks for the agents, the skill, `help` and the project template.
 
 ### Changed
 - `help` marks `showcase`, `architect`, `designer` and `tester` available, and says which reviewer asks which question.
@@ -25,6 +25,7 @@ to detect updates.
 - **No new agent is read-only by force.** Like `skeptic` and `lens-reviewer`, they have no edit tools, but plugin agents cannot restrict `Bash` to read-only commands, so a shell write is possible. They are told not to write. Check `git status` after a review.
 - **`tester` mutates a copy, so it needs a project whose tests run in a fresh copy.** Tests that need ignored files (`node_modules`, `.env`), a database or the network may not run there. It then reports `NOT CHECKED` and does not mutate the real project. A test run in the real project can still leave caches.
 - **Running tests or a demo can leave caches in the project** (`__pycache__`, `.pyc`). `tester` runs the real project's tests once for its baseline, and `showcase` runs the demo commands you approve; check `git status` afterwards. In a live run the tester found that stale bytecode hid its mutants, so it now leaves caches out of its copy.
+- **The tester's cap of 6 mutants is an instruction, not enforced.** In a live rerun it made 7 and said so. Read its `MUTANTS` list, not only the headline count.
 - **`designer` has no browser.** It judges the source and any screenshots it is given, says which, and lists what it did not see (states, other viewports, real rendering).
 - **`showcase` verifies only what it can run safely.** Steps that need a service, a key or a display are marked `UNVERIFIED`. The demo commands are not pre-approved: Claude Code asks for each.
 - **`showcase-facts.sh` limits.** A file name with a newline or a double quote is skipped from the churn list. README headings are read from Markdown only (an `.rst` README is reported as not read). A shallow clone and a folder inside a larger repository are reported as such. History is read with `git log` over the whole history, which is not capped or timed out, so a very large repository can be slow.
