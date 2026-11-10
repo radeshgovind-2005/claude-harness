@@ -3,7 +3,7 @@
 - Plugin version: 1.0.0
 - Date: 2026-11-10
 - Command: `/dev-harness:explore reduce the milliseconds that python3 bench.py prints (lower is better, target 50) ...`
-- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
+- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`. `claude -p` prints only Claude's final message, so text from earlier in the session is not shown (which is why a report can refer to something "above").
 - Project: a toy Python project: `dedupe()` with a quadratic list scan, and a `bench.py` that prints a number.
 
 The script measured the baseline, Claude made one change, the script saw the target met and stopped the loop, so the bold second variant was never tried. The log, the commit and the branch are the script's, not Claude's claims. The report also lists what is not verified (a single run, unhashable items, how well the metric fits real inputs).

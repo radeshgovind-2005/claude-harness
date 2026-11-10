@@ -24,7 +24,7 @@
 # Exit 1 on any refusal or failure, with a "FAIL" line.
 
 # -h / --help prints the comment block at the top of this file (the usage).
-case "${1:-}" in -h|--help) sed -n '2,/^[^#]/{/^#/s/^# \{0,1\}//p;}' "$0"; exit 0 ;; esac
+case "${1:-}" in -h|--help) sed -n -E '2,/^([^#]|$)/{/^#/s/^# ?//p;}' "$0"; exit 0 ;; esac
 
 set -u
 PLUGIN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

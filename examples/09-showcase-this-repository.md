@@ -3,7 +3,7 @@
 - Plugin version: 0.5.0
 - Date: 2026-11-10
 - Command: `/dev-harness:showcase the README front page for friends who may install it ...`
-- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
+- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`. `claude -p` prints only Claude's final message, so text from earlier in the session is not shown (which is why a report can refer to something "above").
 - Project: this repository, same state as the `lens` example.
 
 The pick (the opt-in guardrails, and that they are tested) became the README's "Does it get in my way?" section. Its DO NOT CLAIM list caught a profile detail it had not confirmed.
@@ -12,7 +12,7 @@ Absolute paths were shortened (`<scratch>`, `~`). Nothing else was edited.
 
 ## What Claude reported
 
-```
+````
 **PICK:** The opt-in guardrail hooks that `/dev-harness:new` copies into a project. They block force push, `--no-verify`, reading `.env` and `curl | sh` for real, and a test suite proves it.
 
 **FOR:** Friends who may install it. This is an assumption. `docs/intent.md` doesn't exist (the facts script says: "who this is for is unknown (run /dev-harness:discover)"), so I took the audience from your request. I treated them as developers who already use Claude Code and want to know "what happens to my repo if I turn this on?"
@@ -89,5 +89,5 @@ required CI on your Git host.
 - **Version drift.** The README says v0.5.0, and the top of CLAUDE.md says the version lives only in `plugin.json`. I didn't compare the two, so don't quote a version in the new section.
 
 **Do you want me to add the "Does it get in my way?" section to `README.md`, after `## Install`?** I haven't written anything. If you say yes, I'll make that one edit and show the `git diff`.
-```
+````
 

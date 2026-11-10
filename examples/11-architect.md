@@ -3,10 +3,10 @@
 - Plugin version: 1.0.0
 - Date: 2026-11-10
 - Command: `Use the dev-harness:architect agent: is the structure ready for adding a second payment provider next quarter?`
-- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
+- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`. `claude -p` prints only Claude's final message, so text from earlier in the session is not shown (which is why a report can refer to something "above").
 - Project: a toy Python billing tool with an import cycle and a catch-all `core.py`; its README says a second payment provider is planned.
 
-Note that it questions the premise: there is no first provider to generalise yet.
+Note that it questions the premise: there is no first provider to generalise yet. The last line of the file is the parent session correcting a line it had mistyped when relaying the report. The agent was started by a parent Claude session that was told to return the report verbatim. What is shown is the parent's reply, so it can contain a line or two of the parent's own words (and it may retell the report); it is not the agent's raw output.
 
 Absolute paths were shortened (`<scratch>`, `~`). Nothing else was edited.
 

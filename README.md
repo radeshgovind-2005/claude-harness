@@ -25,7 +25,7 @@ In a project folder:
 
 1. **Discover.** Claude says back what it thinks the work is about (guesses labelled), asks only what is missing, proposes two or three directions (one bold), and saves the decision to `docs/intent.md`. No code is written yet.
 2. **Profile.** You pick how strict the guardrails are.
-3. **Scaffold.** It adds a short `CLAUDE.md` (a router that tells Claude which doc to read for which task), `docs/` (intent, architecture, conventions, lessons, progress), the guardrail hooks, and a CI check that the hooks still work. It never overwrites a file you have.
+3. **Scaffold.** It adds a short `CLAUDE.md` (a router that tells Claude which doc to read for which task), `docs/` (architecture, conventions, workflow, lessons, progress, experiments; `intent.md` is the one `discover` wrote), the guardrail hooks, and a CI check that the hooks still work. It never overwrites a file you have.
 
 | Profile | For | `main` | Check when Claude stops | `git push` asks |
 |---|---|---|---|---|
@@ -37,7 +37,7 @@ Step by step, with the other profiles: [docs/getting-started.md](docs/getting-st
 
 ## Does it get in my way?
 
-No. The plugin itself ships no hooks. Guardrails exist only in a project where you ran `/dev-harness:new` or `/dev-harness:add guardrails`. Once they are there, the shell guard stops these (it exits 2 and tells Claude why, for example `BLOCKED: Force push is not allowed`):
+No. The plugin itself ships no hooks. Guardrails exist only in a project where you ran `/dev-harness:new` or `/dev-harness:add guardrails`. Once they are there, the guards stop these (a hook exits 2 and tells Claude why, for example `BLOCKED: Force push is not allowed`):
 
 - force push (`--force`, `-f`, `--force-with-lease`, `+refspec`) and `git commit --no-verify` (or `-n`, its short form)
 - `cat .env` and edits to `.env`, lockfiles, private keys and the hooks themselves

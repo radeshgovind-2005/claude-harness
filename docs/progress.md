@@ -8,15 +8,15 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 - Stability promise (`docs/stability.md`): what is frozen in 1.x, what is not, what counts as breaking.
 - Docs: `getting-started`, `reference`, `how-it-works` (with every known limit), `stability`, `contributing`. README is a front door (install first, a tour, "Does it get in my way?", tables, limits, links). `BRIEF.md` moved to `docs/brief.md`.
 - `examples/`: 12 captured runs with headers (version, date, command, how it was run).
-- Tests: `docs-test.sh` (58), `run-all.sh`; CI on Ubuntu and macOS; `.gitattributes`; icon; `--help` on five scripts; `validate.sh` now checks every agent for edit tools.
+- Tests: `docs-test.sh` (80), `run-all.sh`; CI on Ubuntu and macOS; `.gitattributes`; icon; `--help` on five scripts; `validate.sh` now checks every agent for edit tools.
 - Dogfood: this repository got a `CLAUDE.md` router, passes `ax-check.sh`, and was reviewed with the plugin's own `lens` and `showcase`. Their findings drove the README, the docs and four fixes to the guard hooks (below).
 - Fixes in the shipped hooks (behaviour changes, each proven by a mutant): fail closed without `jq`; main protection before the first commit; `git commit -n`; "Instead:" on hard blocks; `verify.sh` loop guard without `jq`.
 - Version 1.0.0, CHANGELOG, `help` (no "planned" rows).
 
 ### Verified
-- `tests/run-all.sh`: validate 57, docs 58, explore 83, lens 36, goal 60, showcase 131, scaffold 195 (the project hook tests run inside every scaffold: 199 per scaffold, was 172). shellcheck clean at warning level on every script.
+- `tests/run-all.sh`: validate 57, docs 80, explore 83, lens 36, goal 60, showcase 131, scaffold 195 (the project hook tests run inside every scaffold: 211 per scaffold, was 172). shellcheck clean at warning level on every script.
 - `claude plugin validate --strict` and `--profile directory` both pass with no warning.
-- Mutation checks, one at a time in copies: 27 mutants of `docs-test.sh` (broken link, wrong README version or count, dropped skill or agent in `reference.md`, `stability.md` or the README, stale "planned" text, a `CLAUDE.md` route that does not exist, a CR in a script, missing `.gitattributes`, a non-square or missing icon, an example without its header or index entry, an owner name the fork guide does not list); 20 mutants of the hook changes (the `-n` rule and its false positives, `symbolic-ref`, the `jq` guard and its message, the `verify.sh` loop guard, each "Instead:" message); 3 of `run-all.sh` (a broken suite fails the run, a suite that prints no result fails, `--fast` says it skipped one). Survivors found and fixed: the stability check that matched a name anywhere in the file, the `jq` message check that matched the word "install" in "not installed".
+- Mutation checks, one at a time in copies: 33 mutants of `docs-test.sh` (broken link, wrong README version or count, dropped skill or agent in `reference.md`, `stability.md` or the README, stale "planned" text, a `CLAUDE.md` route that does not exist, a CR in a script, missing `.gitattributes`, a non-square or missing icon, an example without its header or index entry, an owner or author name the fork guide does not list, an unclosed or wrongly nested code fence, a missing checkpoint heading, a script without `--help`); 30 mutants of the hook changes (the `-n` rule, its quote handling and false positives, `symbolic-ref` and a tag named `main`, the `jq` guard and a failing `jq`, the `verify.sh` loop guard, each "Instead:" message); 3 of `run-all.sh` (a broken suite fails the run, a suite that prints no result fails, `--fast` says it skipped one). Survivors found and fixed: the stability check that matched a name anywhere in the file, the `jq` message check that matched the word "install" in "not installed".
 - Live headless runs with `--plugin-dir` (the 12 examples are the captures):
   - **assignment profile end to end:** `new` wrote the files and the hooks (172 hook tests passed then), then in a fresh session Claude changed `add` to `a - b` as asked and tried to finish; `verify.sh` ran `make test`, blocked, and Claude did not edit the test to make it pass: it stopped and asked.
   - **discover in three turns** across `--continue` with prepared answers: reflect, three questions, three directions with one bold, decision, `docs/intent.md` with `status: decided` and unanswered questions kept as open questions.
@@ -37,7 +37,20 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 - Carried over: the README `Edit` path with a real "yes" in `showcase`; whether `/reload-plugins` is needed after install.
 
 ### Skeptic review
-(filled in after the review)
+A fresh-context reviewer got the goal and `git diff main..build/v1.0.0`, with a docs-accuracy brief. Its verdict was CHANGES REQUESTED with 14 issues (none high, 3 medium). It re-ran the suites, tried to break the new `-n` rule, and recomputed the contrast ratios in example 12 (they are right). It confirmed the profile values, goal and explore defaults, each agent's tools and first line, the `add` part table, and that `.gitattributes` damages nothing.
+- **Fixed:**
+  - The checkpoint and CHANGELOG were not yet committed when it looked, so a clean clone failed `docs-test`.
+  - The examples were described as "nothing hand-written", but the three agent examples are the parent session's relay of the report (one ends with the parent correcting a line it mistyped), example 06 is the final message of a session and refers to steps `claude -p` does not print, its `make test` output was the last 8 lines, and the 1.0.0-labelled captures show 172 hook tests from before the last hook fixes. The headers and `examples/README.md` now say all of this.
+  - `git commit -n` false positives were understated: `-m "refactor -nested"`, `-m "$(git log -n 1)"` and `echo "git commit -n"` were blocked. Quoted text is now removed before the check; a multi-line message with ` -n` outside quotes can still trigger it, and the docs say so.
+  - A `jq` that is present but fails still failed open; the message told Claude to install `jq`, which it cannot do. Both fixed.
+  - A tag named `main` hid the branch (`--short` prints `heads/main`). Fixed.
+  - The "no commit yet: push of main" test proved nothing about `symbolic-ref`; a bare `git push` test replaced it.
+  - README said "the shell guard" for edits to `.env`, keys and hooks (those are `protect-paths.sh`); README and `stability.md` listed `intent.md` as scaffolded (it is written by `discover`); `contributing.md` misstated which skills set `disable-model-invocation`.
+  - CI claimed macOS covered the hooks, but the scaffold suite (which runs the hook tests) is Ubuntu-only: the project hook self-test now runs as its own step on both systems.
+  - Example 10 relays a wrong suggestion by the tester (the rounding tests would not catch that mutant); the file now says so. Nested code fences in examples 07 and 09 broke rendering; fixed, and `docs-test` now checks fence balance.
+  - `--help` printed a trailing self-reference line (the range now stops at the first blank line).
+- **Documented, not fixed:** `--help` works only as the first argument (`scaffold.sh . files --help` still reports an unknown option); the guards block everything when `jq` is not on the hook's PATH (a GUI-launched session with a minimal PATH would hit this); a message with ` -n` outside quotes on a continuation line.
+- **Not checked by the reviewer:** a real macOS runner, Windows, whether the examples are genuine captures (it could check only internal consistency; the capture scripts are not in the repository), `run-all.sh` end to end, and the live-run claims (the 8-block cap, the folder-trust behaviour).
 
 ### Next
 - After 1.0.0: feedback from real use. The most valuable single thing is a real `discover` on a real idea, then `/dev-harness:lesson` for what it missed.

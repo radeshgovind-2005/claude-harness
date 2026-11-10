@@ -3,7 +3,7 @@
 - Plugin version: 1.0.0
 - Date: 2026-11-10
 - Command: `/dev-harness:showcase tutor demo`
-- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
+- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`. `claude -p` prints only Claude's final message, so text from earlier in the session is not shown (which is why a report can refer to something "above").
 - Project: a toy Python word-count CLI with two tests and an `experiments.md` log that claims a 410 to 95 ms speed-up.
 
 Claude ran the demo and could not reproduce the logged speed-up (the history does not contain the slow baseline), so it kept that number out of the README draft and listed it under what not to claim. It wrote no file and stopped at the question about the README.
@@ -12,7 +12,7 @@ Absolute paths were shortened (`<scratch>`, `~`). Nothing else was edited.
 
 ## What Claude reported
 
-```
+````
 I've finished the checks. One result matters for the pitch: the "use Counter" commit changes no files, and the original commit already used Counter. I'm writing up the proposal now.
 
 ```
@@ -68,5 +68,5 @@ NOT VERIFIED:
 What would make the performance story strong is to re-measure it honestly. Keep the old list-based implementation as a committed variant, run `bench.py` against both, and log the real numbers. Two or three tests for the failing edge cases would help too.
 
 Do you want me to add the README section above? It has no usage section, so nothing would be overwritten. It would be the only change, and I'll show the `git diff` afterwards.
-```
+````
 

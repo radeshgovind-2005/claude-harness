@@ -52,7 +52,7 @@ A plugin stays on in every project where it is enabled. A rule like "block edits
 
 ## Platforms
 
-- **macOS and Linux:** tested. The scripts run on bash 3.2 (the macOS default); CI runs the suites on Ubuntu and macOS.
+- **macOS and Linux:** tested. The scripts run on bash 3.2 (the macOS default); CI runs the fast suites and the project hook self-test on Ubuntu and macOS; the scaffold suite runs on Ubuntu only.
 - **Windows:** not tested. `.gitattributes` keeps LF line endings so a checkout cannot break the shebangs, but the hooks need `bash` and `jq`; use Git Bash or WSL.
 - **Needs:** `bash`, `git`, `jq`. `explore` and `goal` also use `awk` and `mktemp`. If `jq` is missing, the guard hooks block every command and say how to install it (they fail closed); `format.sh` just skips formatting.
 
@@ -66,6 +66,6 @@ A plugin stays on in every project where it is enabled. A rule like "block edits
 - **`designer` has no browser.** It judges source and the screenshots you give it, and says so.
 - **`showcase` verifies only what it can run safely.** Steps that need a service, a key or a display are `UNVERIFIED`.
 - **`explore` trusts the metric command.** It cannot tell a gamed metric from a real gain; the skill forbids changing the measurement. `keep` needs a git identity (`user.name`, `user.email`). `explore` needs git.
-- **`guard-bash.sh` is a best-effort list**, not a sandbox. `git commit -n` is blocked, but a message that contains ` -n` as text is blocked too (reword it).
+- **`guard-bash.sh` is a best-effort list**, not a sandbox. `git commit -n` (and `-nm`, `-anm`, `-m x -n`) is blocked. Quoted text is ignored first, so `-m "refactor -nested"` passes; a commit message that spans several lines and has a word like ` -n` outside quotes can still trigger it (reword it).
 - **`showcase-facts.sh`:** a file name with a newline or a double quote is skipped from the churn list; README headings are read from Markdown only; `git log` over a very large history is not capped.
 - **Still open at 1.0.0:** a real interactive `discover` conversation on a real idea has not been run by the author (the three-turn run in `examples/` used prepared answers); every example is a toy project and a single headless run; `designer` has never been given a rendered screenshot; native Windows.

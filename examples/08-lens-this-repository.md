@@ -3,7 +3,7 @@
 - Plugin version: 0.5.0
 - Date: 2026-11-10
 - Command: `/dev-harness:lens README.md and the install and fork path of this repository ...`
-- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
+- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`. `claude -p` prints only Claude's final message, so text from earlier in the session is not shown (which is why a report can refer to something "above").
 - Project: this repository, on the `build/v1.0.0` branch right after `CLAUDE.md` was added and before the docs existed (the plugin was still at 0.5.0).
 
 The findings were real and are why the README now starts with the install, why `docs/` has five new pages, and why `docs/contributing.md` lists every file that names the owner. The lens skill itself is the same in 1.0.0.

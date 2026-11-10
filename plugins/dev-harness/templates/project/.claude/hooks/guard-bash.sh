@@ -19,13 +19,11 @@ main_protected() { [ "$(conf BLOCK_MAIN 1)" != 0 ]; }
 
 # jq reads the tool input. Without it this guard cannot see what Claude is about to do, so it fails closed
 # (blocks) and says how to fix that. It never lets a command through unchecked.
-command -v jq >/dev/null 2>&1 || {
-  echo "BLOCKED: the dev-harness guard needs jq to read the tool input, and jq is not installed. Install it (brew install jq, or apt install jq) and retry. Until then nothing can be checked, so this guard blocks." >&2
-  exit 2
-}
+nojq_msg="BLOCKED: the dev-harness guard needs jq to read the tool input, and jq is missing or not working. Ask the user to install it (brew install jq, or apt install jq): Claude cannot, because this guard blocks every command until then."
+command -v jq >/dev/null 2>&1 || { echo "$nojq_msg" >&2; exit 2; }
 
 input=$(cat)
-cmd=$(jq -r '.tool_input.command // empty' <<<"$input")
+cmd=$(jq -r '.tool_input.command // empty' <<<"$input") || { echo "$nojq_msg" >&2; exit 2; }
 [ -z "$cmd" ] && exit 0
 
 block() {
@@ -43,14 +41,18 @@ ask() {
 # `git` may carry global options before the subcommand: git -C dir / -c k=v / --no-pager ...
 G='git([[:space:]]+(-[Cc][[:space:]]+[^[:space:]]+|--?[a-z][a-z-]*(=[^[:space:]]*)?))*[[:space:]]+'
 E='([[:space:]]|$|[;&|)"'"'"'])'          # end of a word
-cwd=$(jq -r '.cwd // empty' <<<"$input"); cwd="${cwd:-$PWD}"
-# symbolic-ref also names a branch that has no commit yet (rev-parse --abbrev-ref fails there).
-branch=$(git -C "$cwd" symbolic-ref --short -q HEAD 2>/dev/null)
+cwd=$(jq -r '.cwd // empty' <<<"$input") || { echo "$nojq_msg" >&2; exit 2; }; cwd="${cwd:-$PWD}"
+# symbolic-ref also names a branch that has no commit yet (rev-parse --abbrev-ref fails there), and the
+# refs/heads/ prefix is cut by hand because --short gives "heads/main" when a tag is also called main.
+branch=$(git -C "$cwd" symbolic-ref -q HEAD 2>/dev/null | sed "s,^refs/heads/,,")
 
 # --- Hard blocks (every profile) ---
 grep -Eq -- '--no-verify' <<<"$cmd" && block "Do not skip git hooks (--no-verify). Instead: fix what the hook reports, or ask the user to commit themselves."
-# -n is the short form of --no-verify on git commit (also inside a group such as -nm or -anm).
-grep -Eq "${G}commit([[:space:]]+[^|;&]*)?[[:space:]]-[a-zA-Z]*n[a-zA-Z]*$E" <<<"$cmd" && block "git commit -n skips the git hooks, like --no-verify. Instead: fix what the hook reports, or ask the user to commit themselves. (If -n is only part of your message text, reword it.)"
+# -n is the short form of --no-verify on git commit (also inside a group such as -nm or -anm). Quoted text
+# (a commit message, an echo) is removed first, so "refactor -nested" or "$(git log -n 1)" in a message is fine.
+# A message that spans several lines can still trigger this: reword it.
+unquoted=$(sed -E "s/\"[^\"]*\"//g; s/'[^']*'//g" <<<"$cmd")
+grep -Eq "${G}commit([[:space:]]+[^|;&]*)?[[:space:]]-[a-zA-Z]*n[a-zA-Z]*$E" <<<"$unquoted" && block "git commit -n skips the git hooks, like --no-verify. Instead: fix what the hook reports, or ask the user to commit themselves."
 grep -Eq "${G}push.*([[:space:]]--force|[[:space:]]-[a-zA-Z]*f[a-zA-Z]*$E|[[:space:]]\+[^[:space:]])" <<<"$cmd" && block "Force push is not allowed (this includes -f, --force-with-lease and +refspec). Instead: push a new commit, or ask the user to force push themselves."
 grep -Eq '(^|[;&|[:space:]])rm[[:space:]]' <<<"$cmd" \
   && grep -Eq '[[:space:]](-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)([[:space:]]|$)' <<<"$cmd" \

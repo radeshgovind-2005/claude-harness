@@ -3,10 +3,10 @@
 - Plugin version: 1.0.0
 - Date: 2026-11-10
 - Command: `Use the dev-harness:tester agent on the project (TARGET: discount.py, TEST COMMAND: python3 -m unittest discover -s tests)`
-- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
+- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`. `claude -p` prints only Claude's final message, so text from earlier in the session is not shown (which is why a report can refer to something "above").
 - Project: a toy Python function `price(qty, unit)` with four tests, two of which cannot fail on the cases that matter.
 
-The agent broke the code in a temporary copy and listed which breaks no test noticed. It made 7 mutants although its instructions say at most 6, and said so; the cap is an instruction, not enforced.
+The agent broke the code in a temporary copy and listed which breaks no test noticed. It made 7 mutants although its instructions say at most 6, and said so; the cap is an instruction, not enforced. One of its suggestions is wrong: the rounding tests it proposes (`price(3, 0.333)` and `price(10, 0.333)`) would not catch the `round(total, 2)` to `round(total, 0)` mutant, because 0.999 and 2.997 round to the same whole number either way. Check the suggested tests before you add them. The agent was started by a parent Claude session that was told to return the report verbatim. What is shown is the parent's reply, so it can contain a line or two of the parent's own words (and it may retell the report); it is not the agent's raw output.
 
 Absolute paths were shortened (`<scratch>`, `~`). Nothing else was edited.
 

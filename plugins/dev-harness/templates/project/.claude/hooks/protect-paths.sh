@@ -19,13 +19,11 @@ main_protected() { [ "$(conf BLOCK_MAIN 1)" != 0 ]; }
 
 # jq reads the tool input. Without it this guard cannot see what Claude is about to do, so it fails closed
 # (blocks) and says how to fix that. It never lets a command through unchecked.
-command -v jq >/dev/null 2>&1 || {
-  echo "BLOCKED: the dev-harness guard needs jq to read the tool input, and jq is not installed. Install it (brew install jq, or apt install jq) and retry. Until then nothing can be checked, so this guard blocks." >&2
-  exit 2
-}
+nojq_msg="BLOCKED: the dev-harness guard needs jq to read the tool input, and jq is missing or not working. Ask the user to install it (brew install jq, or apt install jq): Claude cannot, because this guard blocks every command until then."
+command -v jq >/dev/null 2>&1 || { echo "$nojq_msg" >&2; exit 2; }
 
 input=$(cat)
-file=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$input")
+file=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$input") || { echo "$nojq_msg" >&2; exit 2; }
 [ -z "$file" ] && exit 0
 
 # Normalize: resolve . and .., duplicate slashes and symlinks, then compare in
@@ -83,7 +81,7 @@ dir=$(dirname "$file")
 while [ ! -d "$dir" ] && [ "$dir" != "/" ]; do dir=$(dirname "$dir"); done
 if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   # symbolic-ref also names a branch that has no commit yet (rev-parse --abbrev-ref fails there).
-  branch=$(git -C "$dir" symbolic-ref --short -q HEAD 2>/dev/null)
+  branch=$(git -C "$dir" symbolic-ref -q HEAD 2>/dev/null | sed "s,^refs/heads/,,")
   case "$branch" in
     main|master)
       echo "BLOCKED: you are on '$branch'. Create a branch or worktree first (git switch -c <name>)." >&2

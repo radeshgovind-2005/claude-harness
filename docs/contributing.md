@@ -30,7 +30,7 @@ Run test scripts with `/bin/bash`: on macOS that is bash 3.2, where the scripts 
 
 ## Adding a skill
 
-1. Create `plugins/dev-harness/skills/<name>/SKILL.md` (kebab-case folder, exact-case `SKILL.md`) with frontmatter that has a `description`. Skills that act on a project say `disable-model-invocation: true`.
+1. Create `plugins/dev-harness/skills/<name>/SKILL.md` (kebab-case folder, exact-case `SKILL.md`) with frontmatter that has a `description`. Skills that run a script or change a project's files (`new`, `add`, `explore`, `goal`, `lens`, `showcase`) say `disable-model-invocation: true`; `discover` and `lesson` do not, because Claude may reasonably start them itself.
 2. Call bundled scripts as `bash "${CLAUDE_PLUGIN_ROOT}/scripts/..."`, not with `` !`cmd` `` injection (a setting can disable that). A Read rule for a plugin file needs the extra slash: `Read(/${CLAUDE_PLUGIN_ROOT}/...)`.
 3. `allowed-tools` lists only what the skill uses. Do not pre-approve a command that installs something a hook or script runs later: Claude Code's prompt is the real confirmation. Do not pre-approve `Edit` or `Write` for a skill that only proposes.
 4. Add a row to `plugins/dev-harness/skills/help/SKILL.md` with the status `available`. `validate.sh` fails when a skill is missing from `help` or `help` names one that does not exist.

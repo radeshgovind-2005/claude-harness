@@ -3,10 +3,10 @@
 - Plugin version: 1.0.0
 - Date: 2026-11-10
 - Command: `Use the dev-harness:designer agent on index.html and style.css (audience: shoppers on phones and keyboards)`
-- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
+- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`. `claude -p` prints only Claude's final message, so text from earlier in the session is not shown (which is why a report can refer to something "above").
 - Project: a toy HTML and CSS page with a `div` button, white text on yellow, a removed focus outline and fixed widths.
 
-Source only: nothing was rendered, and the report says so. It computes the contrast ratios from the colour values.
+Source only: nothing was rendered, and the report says so. It computes the contrast ratios from the colour values (they recompute correctly). The agent was started by a parent Claude session that was told to return the report verbatim. What is shown is the parent's reply, so it can contain a line or two of the parent's own words (and it may retell the report); it is not the agent's raw output.
 
 Absolute paths were shortened (`<scratch>`, `~`). Nothing else was edited.
 

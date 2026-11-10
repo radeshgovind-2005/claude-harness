@@ -3,7 +3,7 @@
 - Plugin version: 1.0.0
 - Date: 2026-11-10
 - Command: `/dev-harness:discover <assignment text>, then two `--continue` turns with prepared answers`
-- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
+- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`. `claude -p` prints only Claude's final message, so text from earlier in the session is not shown (which is why a report can refer to something "above").
 - Project: an empty git repository for a course assignment (a CSV expense summary CLI).
 
 The answers were written in advance by the author, so this is **not** a real interactive conversation on a real idea. It shows the shape: reflect back with guesses labelled, at most three questions, three directions with one bold, the decision, then `docs/intent.md` with `status: decided` and the unanswered questions kept as open questions instead of becoming requirements.

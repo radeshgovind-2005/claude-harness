@@ -178,6 +178,12 @@ check "git commit --amend --no-edit is allowed" 0 "$(run 'git commit --amend --n
 check "git commit message with words is allowed" 0 "$(run 'git commit -m "add a new feature"')"
 check "git commit --no-gpg-sign is allowed"   0 "$(run 'git commit --no-gpg-sign -m x')"
 check "git commit -S -m is allowed"           0 "$(run 'git commit -S -m x')"
+check "a quoted -nested in a message is allowed"   0 "$(run 'git commit -m "refactor -nested modules"')"
+check "git log -n inside \$() in a message is allowed" 0 "$(run 'git commit -m "$(git log -n 1 --format=%s)"')"
+check "echo of the words is allowed"          0 "$(run 'echo "git commit -n"')"
+check "a single-quoted -nested in a message is allowed" 0 "$(run "git commit -m 'refactor -nested modules'")"
+check "git commit -n -m \"msg\" is still blocked" 2 "$(run 'git commit -n -m "a message"')"
+check "git commit -m \"msg\" -n is still blocked" 2 "$(run 'git commit -m "a message" -n')"
 
 echo "Blocked messages say what to do instead"
 # 2>&1 >/dev/null on purpose: keep stderr (the block message), drop stdout.
@@ -195,11 +201,19 @@ urun()  { jq -n --arg c "$1" --arg d "$U" '{tool_name:"Bash",cwd:$d,tool_input:{
 check "no commit yet: edit on main is blocked"    2 "$(uedit)"
 check "no commit yet: commit on main is blocked"  2 "$(urun 'git commit -m x')"
 check "no commit yet: push of main is blocked"    2 "$(urun 'git push origin main')"
+check "no commit yet: a bare git push on main is blocked" 2 "$(urun 'git push')"
 setconf "PROFILE=prototype" "BLOCK_MAIN=0" 'VERIFY_CMD=""'
 check "no commit yet, BLOCK_MAIN=0: edit is allowed" 0 "$(uedit)"
 git -C "$U" switch -q -c feature
 setconf "PROFILE=product" "BLOCK_MAIN=1" 'VERIFY_CMD=""'
 check "no commit yet, on a feature branch: edit is allowed" 0 "$(uedit)"
+
+echo "A tag named main does not hide the branch"
+setconf "PROFILE=product" "BLOCK_MAIN=1" 'VERIFY_CMD=""'
+git -C "$T" switch -q main; git -C "$T" tag main
+check "tag named main: edit on main is still blocked"    2 "$(edit src/app.ts)"
+check "tag named main: commit on main is still blocked"  2 "$(run 'git commit -m x')"
+git -C "$T" tag -d main >/dev/null; git -C "$T" switch -q feature
 
 echo "Without jq the guard fails closed"
 # shellcheck disable=SC2069
@@ -207,6 +221,7 @@ nojq() { echo '{"tool_name":"Bash","tool_input":{"command":"ls"}}' | PATH=/nonex
 check "no jq: guard-bash.sh blocks"        "rc=2" "$(nojq guard-bash.sh | tail -n1)"
 check "no jq: protect-paths.sh blocks"     "rc=2" "$(nojq protect-paths.sh | tail -n1)"
 grep -q 'brew install jq' <<<"$(nojq guard-bash.sh)" && grep -q 'apt install jq' <<<"$(nojq protect-paths.sh)"; check "no jq: both messages say how to install jq" 0 $?
+grep -q 'Ask the user' <<<"$(nojq guard-bash.sh)"; check "no jq: the message tells Claude to ask the user (Claude cannot install it)" 0 $?
 # verify.sh needs no jq (its loop guard must not depend on it). Build a PATH with the usual tools but no jq.
 NB="$T/nojq-bin"; mkdir "$NB"
 for t in cat grep sed tr cut git bash false true head tail wc dirname basename mktemp rm; do
@@ -217,6 +232,13 @@ setconf "BLOCK_MAIN=1" 'VERIFY_CMD="false"'
 nojqstop() { echo "$1" | PATH="$NB" /bin/bash "$H/verify.sh" >/dev/null 2>&1; echo $?; }
 check "no jq: verify.sh still blocks a failing check"   2 "$(nojqstop '{}')"
 check "no jq: verify.sh loop guard still allows stop"   0 "$(nojqstop '{"stop_hook_active":true}')"
+# A jq that is present but fails must not let a command through either.
+printf '#!/bin/sh\nexit 5\n' > "$NB/jq"; chmod +x "$NB/jq"
+badjq() { echo '{"tool_name":"Bash","tool_input":{"command":"git push --force"}}' | PATH="$NB" /bin/bash "$H/guard-bash.sh" >/dev/null 2>&1; echo $?; }
+badjqedit() { echo '{"tool_name":"Edit","tool_input":{"file_path":"/x/.env"}}' | PATH="$NB" /bin/bash "$H/protect-paths.sh" >/dev/null 2>&1; echo $?; }
+check "a failing jq: guard-bash.sh blocks"     2 "$(badjq)"
+check "a failing jq: protect-paths.sh blocks"  2 "$(badjqedit)"
+rm -f "$NB/jq"
 
 echo
 echo "Result: $pass passed, $fail failed"

@@ -28,6 +28,8 @@ jobs:
         env:
           REQUIRE_CLAUDE: "1"
         run: /bin/bash tests/validate.sh
+      - name: Project hook self-test (the hooks that are copied into projects)
+        run: /bin/bash plugins/dev-harness/templates/project/.claude/hooks/test-hooks.sh
       - name: Scaffold, profiles, hooks and discover lock
         # About 4 minutes: Ubuntu only. The other suites run on both systems.
         if: matrix.os == 'ubuntu-latest'

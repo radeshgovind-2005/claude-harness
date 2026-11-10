@@ -3,7 +3,7 @@
 - Plugin version: 1.0.0
 - Date: 2026-11-10
 - Command: `/dev-harness:goal python3 -m unittest discover -s tests passes (5 rounds, 10 minutes)`
-- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
+- How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`. `claude -p` prints only Claude's final message, so text from earlier in the session is not shown (which is why a report can refer to something "above").
 - Project: a toy Python project with two bugs in `stats.py` and three unit tests.
 
 The Stop hook ran the check after Claude tried to finish and found it passing, so the loop ended after one round. Claude's report lists what was not verified. There was no `docs/progress.md`, so no checkpoint was written.

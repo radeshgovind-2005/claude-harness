@@ -28,6 +28,17 @@ for f in $DOCS $EXAMPLES; do
   [ -z "$bad" ]; check "$f: every relative link resolves${bad:+ (broken:$bad)}" $?
 done
 
+echo "Code fences"
+for f in $DOCS $EXAMPLES CHANGELOG.md docs/progress.md; do
+  [ -f "$f" ] || continue
+  # A fence opens with 3 or more backticks and closes with at least as many and nothing else on the line.
+  awk 'BEGIN { open = 0 }
+       /^```+/ { match($0, /^`+/); n = RLENGTH; rest = substr($0, n + 1)
+                 if (open == 0) { open = n } else if (n >= open && rest ~ /^[ \t]*$/) { open = 0 }
+                 next }
+       END { exit (open != 0) }' "$f"; check "$f: every code fence is closed" $?
+done
+
 echo "Versions and counts"
 ns=$(find "$P/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')
 na=$(find "$P/agents" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')

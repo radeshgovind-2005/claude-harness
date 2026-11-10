@@ -1,6 +1,6 @@
 # Examples
 
-Real output from dev-harness, captured from headless runs on small throwaway projects. Nothing here was written by hand: each file starts with a header (plugin version, date, the command, how it was run, the project), then the output, with absolute paths shortened. Where a line was removed, the file says so.
+Real output from dev-harness, captured from headless runs on small throwaway projects. The output was not written by hand: each file starts with a header (plugin version, date, the command, how it was run, the project), then the output, with absolute paths shortened. Where a line was removed, the file says so. Two things to know: `claude -p` prints only Claude's final message, so a report can refer to earlier steps you do not see; and the agent examples (10, 11, 12) went through a parent session that was asked to return the report verbatim, so each is the parent's reply and not the agent's raw output (the file says so).
 
 Read them as "what does it look like", not as proof that it works on your project. They are single runs on toy projects, and a headless run cannot answer prompts or approve tools, so every confirmation was given in the prompt. Two of them are about this repository itself, captured while 1.0.0 was being built.
 
