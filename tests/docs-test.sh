@@ -45,9 +45,10 @@ for d in "$P"/skills/*/; do s=$(basename "$d"); grep -q "^### $s\$" docs/referen
 for f in "$P"/agents/*.md; do a=$(basename "$f" .md); grep -q "^| \`$a\` " docs/reference.md || miss="$miss $a"; done
 [ -z "$miss" ]; check "docs/reference.md has a section for every skill and a row for every agent${miss:+ (missing:$miss)}" $?
 miss=""
-for d in "$P"/skills/*/; do s=$(basename "$d"); grep -q "\`$s\`" docs/stability.md || miss="$miss $s"; done
-for f in "$P"/agents/*.md; do a=$(basename "$f" .md); grep -q "\`$a\`" docs/stability.md || miss="$miss $a"; done
-[ -z "$miss" ]; check "docs/stability.md names every skill and agent${miss:+ (missing:$miss)}" $?
+srow=$(grep '^| Skill names and arguments' docs/stability.md); arow=$(grep '^| Agent names' docs/stability.md)
+for d in "$P"/skills/*/; do s=$(basename "$d"); grep -q "\`$s\`" <<<"$srow" || miss="$miss $s"; done
+for f in "$P"/agents/*.md; do a=$(basename "$f" .md); grep -q "\`$a\`" <<<"$arow" || miss="$miss $a"; done
+[ -z "$miss" ]; check "docs/stability.md lists every skill (in its skill row) and every agent (in its agent row)${miss:+ (missing:$miss)}" $?
 miss=""
 for f in "$P"/agents/*.md; do a=$(basename "$f" .md); grep -q "\`$a\`" README.md || miss="$miss $a"; done
 for d in "$P"/skills/*/; do s=$(basename "$d"); grep -q "\`$s\`\|\`$s <" README.md || miss="$miss $s"; done
