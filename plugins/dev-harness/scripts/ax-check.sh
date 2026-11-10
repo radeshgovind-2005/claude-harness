@@ -30,10 +30,15 @@ else
 
   # 2. Every routed path exists (docs/intent.md has its own check below: only discover creates it)
   missing=""; count=0
+  # Candidates: backticked docs/ and .claude/ paths. Not checked: globs (docs/plans/*.md), placeholders,
+  # docs/intent.md (own check below), and files that are optional by design (local settings).
+  # A trailing #anchor or :line is stripped first.
   while IFS= read -r path; do
     count=$((count+1))
     [ -e "$path" ] || missing="$missing $path"
-  done < <(grep -o '`[^` ]*`' CLAUDE.md | tr -d '`' | grep -E '^(docs/|\.claude/)' | grep -v '<' | grep -vx 'docs/intent.md' | sort -u)
+  done < <(grep -o '`[^` ]*`' CLAUDE.md | tr -d '`' | sed -E 's/#.*$//; s/:[0-9]+(-[0-9]+)?$//' \
+           | grep -E '^(docs/|\.claude/)' | grep -v '[<*?[]' | grep -vx 'docs/intent.md' \
+           | grep -vx '\.claude/settings\.local\.json' | sort -u)
   if [ -z "$missing" ]; then say PASS "routed paths exist" "$count path(s) in CLAUDE.md checked"
   else say FAIL "routed paths exist" "CLAUDE.md points at missing:$missing"; fi
 
@@ -44,7 +49,9 @@ else
 fi
 
 # 4. Guardrails wired to files that exist and run
-if [ -f .claude/settings.json ]; then
+if [ -f .claude/settings.json ] && command -v jq >/dev/null && ! jq empty .claude/settings.json 2>/dev/null; then
+  say FAIL "hooks registered" ".claude/settings.json is not valid JSON: Claude Code ignores it, so no guardrail runs"
+elif [ -f .claude/settings.json ]; then
   bad=""; n=0
   while IFS= read -r h; do
     n=$((n+1))

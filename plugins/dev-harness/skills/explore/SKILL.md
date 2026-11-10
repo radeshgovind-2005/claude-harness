@@ -4,7 +4,7 @@ description: Experiment loop. Agree a metric, try one change at a time, measure 
 when_to_use: The user wants to make something measurably better and the best change is not obvious ("cut p95 latency", "raise the test pass rate", "shrink the bundle"). Not for a known fix: just make it.
 argument-hint: "<what to improve and how it is measured>"
 disable-model-invocation: true
-allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/explore.sh *) Edit(docs/experiments.md) Bash(git status *) Bash(git diff *) Bash(git log *)
+allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/explore.sh *) Bash(git status *) Bash(git diff *) Bash(git log *)
 ---
 
 Run an experiment loop. Input from the user: $ARGUMENTS
@@ -34,7 +34,7 @@ Show the exact command and get an explicit yes (AskUserQuestion). The script run
 ## 2. Start and baseline
 
 1. `explore.sh start <slug>` creates `docs/experiments.md` and, if you are on `main`, a branch `explore/<slug>`.
-2. Fill the Metric section with Edit: Name, Measured by (command in backticks), Direction (`higher is better` or `lower is better`), Target (a number or `none`). Change nothing else in that file by hand: the script writes the log rows.
+2. Fill the Metric section with Edit: Name, Measured by (command in backticks), Direction (`higher is better` or `lower is better`), Target (a number or `none`). The Edit is deliberately not pre-approved: Claude Code shows the command you are about to install and asks, and that prompt is the real confirmation. Change nothing else in that file by hand: the script writes the log rows.
 3. `explore.sh baseline [--runs N]`. If `explore.sh status` already says `STOP=yes` (the baseline meets the target), stop and say so.
 
 ## 3. Variants
@@ -50,7 +50,8 @@ For each variant:
 ## Rules
 
 - **Never change the measurement to get a better number**: not the `Measured by` command, not the test data or the files it reads, not the Target. If the metric turns out to be wrong, stop and tell the user.
-- Never edit the log table by hand, never use `git reset` or `git checkout` yourself to undo a variant: use `revert`.
+- Never edit the log table by hand, never use `git reset` or `git checkout` yourself to undo a variant: use `revert`. `revert` discards **all** uncommitted work except the log (after saving it under `refs/explore/` and `.git/explore-backups/`), so make only the variant's change and run `start` first in every session.
+- `explore` keeps variants on an `explore/<slug>` branch. It refuses a detached HEAD.
 - A failed measurement (`FAIL` from the script) is not a result. Fix the cause or stop; do not log a guess.
 - If a command prints `FAIL`, say so in your report. Do not say the loop finished.
 - State facts about the branch, commits and working tree from `git log --oneline` and `git status --short`, run just before you report, not from memory. `keep` commits the variant; a clean tree after it is expected.

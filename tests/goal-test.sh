@@ -109,6 +109,20 @@ hook g12; [ "$HRC" = 0 ] && grep -q 'malformed' <<<"$HOUT"; check "malformed sta
 newgoal g13 'true' 3; jq '.check = ""' "$(sf g13)" > "$W/t" && mv "$W/t" "$(sf g13)"
 hook g13; [ "$HRC" = 0 ] && grep -q 'malformed' <<<"$HOUT"; check "an empty check in the state: fail open, never 'met'" $?
 
+echo "review fixes (v0.4.0 skeptic)"
+newgoal r1 'head -c 300000 /dev/zero | tr "\\0" "x"; exit 1' 3
+hook r1; [ "$HRC" = 2 ] && [ "${#HOUT}" -lt 6000 ]; check "a check that prints 300 KB on one line: the feedback stays small (${#HOUT} chars)" $?
+newgoal r2 'printf "\033[31mRED\033[0m bell\007 nul-free\n"; exit 1' 3
+hook r2; [ "$HRC" = 2 ] && grep -q 'RED' <<<"$HOUT" && ! grep -q "$(printf '\033')" <<<"$HOUT" && ! grep -q "$(printf '\007')" <<<"$HOUT"; check "escape and control characters are stripped from the feedback" $?
+newgoal r3 'touch ran-here; exit 1' 3
+projdir="$PROJ"; mkdir -p "$W/elsewhere"
+jq --arg p "$W/does-not-exist" '.project = $p' "$(sf r3)" > "$W/t" && mv "$W/t" "$(sf r3)"
+HOUT=$(jq -n '{session_id:"r3"}' | (cd "$W/elsewhere" && CLAUDE_PLUGIN_ROOT="$P" bash "$HOOK" 2>&1)); HRC=$?
+[ "$HRC" = 0 ] && grep -q 'no longer exists' <<<"$HOUT" && [ ! -e "$W/elsewhere/ran-here" ]; check "a missing project folder: fail open, and the check is not run elsewhere" $?
+[ -d "$projdir" ]; check "(setup) project dir existed" $?
+start=$(date +%s); newgoal r4 'true' 3; GOAL_CHECK_TIMEOUT=777 hook r4; sleep 1
+[ -z "$(pgrep -f 'sleep 777' || true)" ] && [ $(( $(date +%s) - start )) -lt 4 ]; check "no sleeping helper is left behind and a fast check returns fast" $?
+
 echo "wiring"
 sed -n '/^---$/,/^---$/p' "$P/skills/goal/SKILL.md" | grep -q 'goal-stop.sh'; check "the skill registers goal-stop.sh as a hook" $?
 sed -n '/^---$/,/^---$/p' "$P/skills/goal/SKILL.md" | grep -q '^disable-model-invocation: true'; check "the skill is user-invoked only" $?

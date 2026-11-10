@@ -32,7 +32,7 @@ D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt
 out=$(ex start cut-latency)
 [ "$(git -C "$D" branch --show-current)" = "explore/cut-latency" ]; check "start on main creates explore/<slug>" $?
 [ -f "$D/docs/experiments.md" ]; check "start creates docs/experiments.md from the template" $?
-grep -q 'never commits to main' <<<"$out"; check "start says it left main" $?
+grep -q 'not on main' <<<"$out"; check "start says the variants are kept off main" $?
 out=$(ex start cut-latency); [ "$(git -C "$D" branch --show-current)" = "explore/cut-latency" ] && grep -q 'skip .*experiments.md' <<<"$out"; check "start again: stays on the branch, skips the file" $?
 D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt"; g add -A; g commit -q -m init; echo 11 > "$D/value.txt"
 [ "$(exs start x)" != 0 ]; check "start refuses a dirty tree" $?
@@ -132,6 +132,55 @@ val 12; ex keep hit 12 >/dev/null
 out=$(ex status); grep -q '^STOP=yes$' <<<"$out" && grep -q 'target reached' <<<"$out"; check "target reached: STOP=yes" $?
 newproj lower 5; ex baseline >/dev/null; val 4; ex keep fast 4 >/dev/null
 out=$(ex status); grep -q '^STOP=yes$' <<<"$out" && grep -q 'target reached' <<<"$out"; check "lower is better: target reached when best <= target" $?
+
+echo "review fixes (v0.4.0 skeptic)"
+# 1. a user file whose name merely starts with the log's name is not the log
+for junk in docs/experiments.md.bak docs/experiments.md.old; do
+  D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt"; mkdir -p "$D/docs"; echo precious > "$D/$junk"
+  g add -A; g commit -q -m init; echo "edited" >> "$D/$junk"
+  [ "$(exs start t)" != 0 ]; check "start refuses a tree whose only dirt is $junk" $?
+done
+D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt"; g add -A; g commit -q -m init
+ex start t >/dev/null; setline "Measured by" '`cat value.txt`'; setline Direction "higher is better"; setline Target none; ex baseline >/dev/null
+echo precious > "$D/docs/experiments.md.bak"; val 5
+ex revert v 5 >/dev/null; [ ! -e "$D/docs/experiments.md.bak" ] && [ -n "$(g for-each-ref refs/explore/)" ]; check "revert backs up an untracked look-alike before discarding it (ref exists)" $?
+tarf=$(ls "$D"/.git/explore-backups/*.tar 2>/dev/null | head -1); [ -n "$tarf" ] && tar -tf "$tarf" | grep -q 'experiments.md.bak'; check "the untracked file is in the backup tar" $?
+# 4. revert saves tracked changes too
+newproj; ex baseline >/dev/null; val 9
+ref=$(ex revert v 9 | sed -n 's/.*refs\/explore\/backup-\([^ ;)]*\).*/\1/p' | head -1)
+[ -n "$ref" ] && [ "$(g show "refs/explore/backup-$ref:value.txt")" = 9 ]; check "revert saves the discarded tracked change under refs/explore/" $?
+# 2. backslashes, quotes and ampersands in text do not corrupt the log
+newproj; ex baseline >/dev/null; val 12
+ex keep 'replace \n with space; a & b "quoted" $HOME `tick`' 12 'note \t tab \\ end' >/dev/null
+out=$(ex status); grep -q '^BEST=12$' <<<"$out" && grep -q '^VARIANTS=1 ' <<<"$out"; check "backslashes and shell characters in the variant text keep the log parseable" $?
+grep -qF 'replace \n with space; a & b "quoted" $HOME `tick`' "$D/docs/experiments.md"; check "the variant text is written verbatim" $?
+val 11; [ "$(exs keep next 11)" != 0 ]; check "after such a row, a worse value is still refused" $?
+# 3. a failing commit rolls the log row back and can be retried
+newproj; ex baseline >/dev/null; val 12
+mkdir -p "$D/.git/hooks"; printf '#!/bin/sh\necho "hook says no" >&2\nexit 1\n' > "$D/.git/hooks/pre-commit"; chmod +x "$D/.git/hooks/pre-commit"
+out=$(ex keep v1 12); [ "$(exs keep v1 12)" != 0 ] && grep -q 'git commit failed' <<<"$out"; check "a failing commit hook: keep fails loudly" $?
+[ "$(rowcount kept)" = 0 ]; check "no 'kept' row is left behind" $?
+out=$(ex status); grep -q '^BEST=10$' <<<"$out"; check "the best value did not move" $?
+[ "$(cat "$D/value.txt")" = 12 ] && [ -z "$(g diff --cached --name-only)" ]; check "the variant is still in the tree and unstaged" $?
+rm "$D/.git/hooks/pre-commit"; out=$(ex keep v1 12); [ $? -eq 0 ] && [ "$(rowcount kept)" = 1 ]; check "after fixing the hook, the same keep works" $?
+# 12. branches
+D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt"; g add -A; g commit -q -m init; g switch -q -c feature/x
+ex start t >/dev/null; [ "$(git -C "$D" branch --show-current)" = "explore/t" ]; check "start on a feature branch also gets an explore/ branch" $?
+D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt"; g add -A; g commit -q -m init; g checkout -q --detach
+[ "$(exs start t)" != 0 ]; check "start refuses a detached HEAD" $?
+newproj; ex baseline >/dev/null; val 12; g checkout -q --detach
+[ "$(exs keep v 12)" != 0 ] && [ "$(exs revert v 12)" != 0 ]; check "keep and revert refuse a detached HEAD" $?
+newproj; ex baseline >/dev/null; val 12; g switch -q -c other
+[ "$(exs keep v 12)" != 0 ]; check "keep refuses outside an explore/ branch" $?
+# 5. numbers
+newproj higher none 'echo ".75"'; [ "$(ex measure)" = "VALUE=.75" ]; check "a leading-dot number is read whole (.75)" $?
+newproj higher none 'echo "ratio: .5"'; [ "$(ex measure)" = "VALUE=.5" ]; check "ratio: .5 is read as .5" $?
+newproj higher none 'echo "p95=1,234 ms"'; out=$(ex measure); [ "$(exs measure)" != 0 ] && grep -q 'thousands separator' <<<"$out"; check "a thousands separator is refused, not misread as 234" $?
+newproj higher none 'echo "done in 12 s (run 3)"'; out=$(ex measure 2>&1); grep -q 'VALUE=3' <<<"$out" && grep -q 'NOTE .*more than one number' <<<"$out"; check "a line with several numbers: uses the last and says so" $?
+# 8. no process is left sleeping
+newproj higher none 'echo 1'; EXPLORE_TIMEOUT=777 ex measure >/dev/null
+sleep 1; [ -z "$(pgrep -f 'sleep 777' || true)" ]; check "no sleeping helper process is left behind" $?
+start=$(date +%s); EXPLORE_TIMEOUT=600 ex measure >/dev/null; [ $(( $(date +%s) - start )) -lt 3 ]; check "a fast metric returns fast (no fixed wait)" $?
 
 echo
 echo "Result: $pass passed, $fail failed"

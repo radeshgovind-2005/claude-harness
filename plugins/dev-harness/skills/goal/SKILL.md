@@ -4,7 +4,7 @@ description: Goal loop judged by a command. Work toward a success check (a comma
 when_to_use: The user wants Claude to keep working until something verifiable is true ("keep going until the tests in tests/api pass", "until lint is clean"), and can state it as a command.
 argument-hint: "<what must be true, ideally as a command that exits 0>"
 disable-model-invocation: true
-allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/goal.sh *)
+allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/goal.sh status *) Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/goal.sh stop *)
 hooks:
   Stop:
     - hooks:
@@ -38,7 +38,7 @@ bash ${CLAUDE_PLUGIN_ROOT}/scripts/goal.sh stop   --session ${CLAUDE_SESSION_ID}
 
 ## 3. Start, then work
 
-1. Run `goal.sh start` with the confirmed command and budget. Only after it prints `add`, the loop is on. If it prints `FAIL`, stop and report it.
+1. Run `goal.sh start` with the confirmed command and budget. It is deliberately not pre-approved: Claude Code shows the exact command and asks, and that prompt is the real confirmation (a skill, a repo file or a prompt injection cannot install a check without it). Only after it prints `add`, the loop is on. If it prints `FAIL`, stop and report it.
 2. Work in the smallest steps that move the check toward passing. Run the check yourself as you go.
 3. When you think it passes, finish normally. **Do not claim success yourself:** the hook runs the check and decides.
 4. Each time the hook sends you back, do what it says: append a short checkpoint (Done / Verified / Next) to `docs/progress.md`, then take the next smallest step. If the same step has failed twice, change approach and say why in the checkpoint.

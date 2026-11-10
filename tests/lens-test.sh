@@ -62,6 +62,12 @@ project product; sed -i.bak -e 's/<project-name> — <one-line purpose>/demo —
 has '^PASS +CLAUDE.md placeholders'; check "filled-in CLAUDE.md passes the placeholder check" $?
 project product; printf '\n- See `docs/nope.md` and `.claude/missing/` for more.\n' >> "$D/CLAUDE.md"; OUT=$(ax)
 has '^FAIL +routed paths exist.*docs/nope.md'; check "a made-up route in CLAUDE.md is a FAIL" $?
+project product; printf '\n- Plans in `docs/plans/*.md`, local overrides in `.claude/settings.local.json`, see `docs/workflow.md#git` and `docs/workflow.md:12`.\n' >> "$D/CLAUDE.md"; OUT=$(ax)
+has '^PASS +routed paths exist'; check "globs, #anchors, :line suffixes and settings.local.json are not false FAILs" $?
+project product; printf '\n- See `docs/nope.md#intro` and `docs/nope2.md:9`.\n' >> "$D/CLAUDE.md"; OUT=$(ax)
+has '^FAIL +routed paths exist.*docs/nope.md.*docs/nope2.md'; check "a missing file is still a FAIL after the anchor or line suffix is stripped" $?
+project product; echo '{ not json .claude/hooks/protect-paths.sh' > "$D/.claude/settings.json"; OUT=$(ax)
+has '^FAIL +hooks registered.*not valid JSON'; check "an invalid settings.json is a FAIL, not a PASS" $?
 bash "$AX" "$W/not-a-dir" >/dev/null 2>&1; [ $? -ne 0 ]; check "a missing project dir fails" $?
 
 echo "lens skill consistency"

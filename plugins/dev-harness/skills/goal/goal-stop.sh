@@ -49,8 +49,12 @@ rounds=$((rounds + 1))
 elapsed=$(( ($(date +%s) - started) / 60 ))
 save ".rounds = $rounds" || { echo "dev-harness goal: cannot write $F; the goal loop is off" >&2; exit 0; }
 
-[ -d "$project" ] && cd "$project" || cd "${CLAUDE_PROJECT_DIR:-$PWD}" || exit 0
+# The check must run where the goal was started. If that folder is gone, do not run it somewhere else.
+[ -d "$project" ] || { echo "dev-harness goal: the project folder $project no longer exists; the goal loop is off" >&2; exit 0; }
+cd "$project" || exit 0
 run_limited "${GOAL_CHECK_TIMEOUT:-120}" "$check"
+# What goes back to Claude: the last N lines, at most 4000 bytes, without control or escape characters.
+out_tail() { tail -n "$1" <<<"$RUN_OUT" | tail -c 4000 | tr -d '\000-\010\013-\037\177'; }
 
 if [ "$RUN_TIMED_OUT" = 0 ] && [ "$RUN_RC" -eq 0 ]; then
   save '.status = "reporting" | .outcome = "met"'
@@ -72,7 +76,7 @@ if [ "$rounds" -ge "$rmax" ] || [ "$elapsed" -ge "$mmax" ]; then
   {
     echo "GOAL BUDGET REACHED without meeting the check: $rounds of $rmax round(s), $elapsed of $mmax min."
     echo "The check \`$check\` $why. Last output:"
-    tail -n 15 <<<"$RUN_OUT"
+    out_tail 15
     echo "---"
     echo "Do not start new work. Write the final report: Done, Verified (the check failed), what is left and your best guess at why,"
     echo "and the next step. Add it to docs/progress.md if that file exists. Do not claim the goal is done."
@@ -84,7 +88,7 @@ fi
   echo "GOAL NOT MET: round $rounds of $rmax ($elapsed of $mmax min). The check \`$check\` $why."
   [ "$rounds" -ge $((rmax - 1)) ] && echo "THIS IS THE LAST ROUND: if the check still fails when you stop again, the goal ends."
   echo "--- last 30 lines of output ---"
-  tail -n 30 <<<"$RUN_OUT"
+  out_tail 30
   echo "---"
   echo "1. Append a short checkpoint to docs/progress.md (create it if missing): Done / Verified / Next."
   echo "2. Take the next smallest step toward making the check pass, then try to finish again."

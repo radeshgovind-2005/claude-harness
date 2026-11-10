@@ -17,7 +17,10 @@
 # The log table rows are: | Date | Variant | Metric | Result | Kept or reverted | Note |
 #
 # Rules enforced here, not in prose: a variant is kept only if it beats the best value; the loop stops
-# on the target or after 2 variants in a row with no improvement; the tree is clean before each variant.
+# on the target or after 2 variants in a row with no improvement; start refuses a dirty tree; keep and
+# revert refuse on a detached HEAD or outside an explore/ branch. revert discards ALL uncommitted work
+# except the log (so run start first and make only the variant's change), after saving it under
+# refs/explore/ and .git/explore-backups/.
 # Exit 1 on any refusal or failure, with a "FAIL" line.
 
 set -u
@@ -36,10 +39,13 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT" || die "cannot enter $ROOT"
 
 branch() { git symbolic-ref --short -q HEAD 2>/dev/null || echo ""; }
-on_main() { case "$(branch)" in main|master) return 0 ;; esac; return 1; }
+on_explore() { case "$(branch)" in explore/*) return 0 ;; esac; return 1; }
+detached() { [ -z "$(branch)" ]; }
 
 # dirty_except_log: porcelain lines other than docs/experiments.md (empty = clean enough).
-dirty_except_log() { git status --porcelain -uall | grep -v -F " $EXP" || true; }
+# The porcelain path starts at column 4 ("XY path"); compare the whole path, so a file such as
+# docs/experiments.md.bak is not mistaken for the log.
+dirty_except_log() { git status --porcelain -uall | awk -v exp_path="$EXP" 'substr($0, 4) != exp_path'; }
 
 # one-line, pipe-free text for table cells
 cell() { printf '%s' "$1" | tr '\r\n|' '   ' | sed 's/^ *//; s/ *$//'; }
@@ -95,7 +101,8 @@ append_row() { # variant value result state note
   local row tmp
   row="| $(date +%F) | $(cell "$1") | \`$2\` | $(cell "$3") | $4 | $(cell "$5") |"
   tmp=$(mktemp)
-  awk -v row="$row" '
+  ROW="$row" awk '
+    BEGIN { row = ENVIRON["ROW"] }
     { lines[NR] = $0; if ($0 ~ /^\|/) last = NR }
     END {
       if (last == 0) { for (i = 1; i <= NR; i++) print lines[i]; print row; exit }
@@ -125,6 +132,12 @@ do_measure() { # [--runs N] -> prints VALUE=<median>
       die "metric command failed (exit $RUN_RC): $CMD"
     fi
     v=$(last_number "$RUN_OUT")
+    if has_thousands_sep "$RUN_OUT"; then
+      die "the metric's last line has a number with a thousands separator (like 1,234), which would be misread. Print a plain number: $CMD"
+    fi
+    if [ -n "$v" ] && [ "$(count_numbers "$RUN_OUT")" -gt 1 ]; then
+      echo "NOTE    the last line has more than one number; using the last one ($v). Make the metric command print only the value." >&2
+    fi
     if [ -z "$v" ]; then
       echo "--- last 20 lines ---" >&2; printf '%s\n' "$RUN_OUT" | tail -n 20 >&2
       die "metric command printed no number: $CMD"
@@ -147,10 +160,11 @@ case "$cmd" in
     [[ "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || die "start needs a kebab-case slug, e.g. cut-latency"
     git rev-parse --verify -q HEAD >/dev/null || die "the repository has no commits yet; commit once so variants can be reverted"
     [ -z "$(dirty_except_log)" ] || { git status --short >&2; die "the working tree is not clean. Commit or stash first: revert would otherwise destroy your changes"; }
-    if on_main; then
+    detached && die "HEAD is detached: commits made now would be lost. Switch to a branch first"
+    if ! on_explore; then
       from=$(branch)
       git switch -c "explore/$slug" >/dev/null 2>&1 || die "could not create branch explore/$slug"
-      echo "  branch  explore/$slug (explore never commits to $from)"
+      echo "  branch  explore/$slug (variants are kept there, not on $from)"
     fi
     if [ -e "$EXP" ]; then echo "  skip    $EXP (exists)"
     else
@@ -178,21 +192,35 @@ case "$cmd" in
     is_number "$value" || die "$cmd needs the measured value as a number (got '$value')"
     need_metric
     has_baseline || die "no baseline row in $EXP. Run: explore.sh baseline"
-    on_main && die "refusing to $cmd on $(branch): run explore.sh start <slug> to get an explore/ branch"
+    detached && die "refusing to $cmd on a detached HEAD: the commit would be lost"
+    on_explore || die "refusing to $cmd on '$(branch)': run explore.sh start <slug> to get an explore/ branch"
     best=$(best_value)
     delta=$(awk -v v="$value" -v b="$best" 'BEGIN { printf "%+.10g", v - b }')
     if [ "$cmd" = keep ]; then
       beats "$value" "$best" || die "$value does not beat the best so far ($best, $DIR is better). Use: explore.sh revert"
       [ -n "$(dirty_except_log)" ] || die "no changes to keep: the working tree equals HEAD"
+      bak=$(mktemp); cat "$EXP" > "$bak"
       append_row "$variant" "$value" "$delta" "kept" "$note"
-      git add -A >/dev/null 2>&1 || die "git add failed"
       errf=$(mktemp)
-      if ! git commit -q -m "explore: $(cell "$variant") ($best -> $value)" >/dev/null 2>"$errf"; then
-        cat "$errf" >&2; rm -f "$errf"; die "git commit failed; the log row is in $EXP, the variant is staged"
+      if ! git add -A >/dev/null 2>"$errf" || ! git commit -q -m "explore: $(cell "$variant") ($best -> $value)" >/dev/null 2>>"$errf"; then
+        # Undo the log row and unstage, so the state is as before and keep can simply be retried.
+        cat "$bak" > "$EXP"; git reset -q HEAD >/dev/null 2>&1
+        cat "$errf" >&2; rm -f "$errf" "$bak"
+        die "git commit failed (for example a failing commit hook). Nothing was logged; the variant is still in the working tree. Fix the cause and run keep again, or run revert"
       fi
-      rm -f "$errf"
+      rm -f "$errf" "$bak"
       echo "  kept    $variant: $best -> $value ($delta)"
     else
+      # Everything uncommitted (except the log) is about to be discarded. Keep a way back first:
+      # tracked changes as a commit object under refs/explore/, untracked files in a tar next to it.
+      gitdir=$(git rev-parse --git-dir); stamp=$(date +%Y%m%d-%H%M%S)-$$
+      mkdir -p "$gitdir/explore-backups"
+      snap=$(git stash create 2>/dev/null)
+      [ -z "$snap" ] || git update-ref "refs/explore/backup-$stamp" "$snap"
+      untracked=$(git ls-files --others --exclude-standard -z | tr '\0' '\n' | grep -v -x -F "$EXP")
+      if [ -n "$untracked" ]; then
+        printf '%s\n' "$untracked" | tar -cf "$gitdir/explore-backups/$stamp.tar" -T - 2>/dev/null
+      fi
       git reset -q HEAD -- . ":(exclude)$EXP" >/dev/null 2>&1 || die "git reset failed"
       git checkout -q HEAD -- . ":(exclude)$EXP" >/dev/null 2>&1 || die "git checkout failed"
       # Untracked, non-ignored files only, one by one (git clean -d would take the whole docs/ folder
@@ -205,6 +233,9 @@ case "$cmd" in
       done < <(git ls-files --others --exclude-standard -z)
       append_row "$variant" "$value" "$delta" "reverted" "$note"
       echo "  reverted $variant: $value vs best $best ($delta). Tree restored to HEAD."
+      if [ -n "${snap:-}" ] || [ -n "$untracked" ]; then
+        echo "  backup  discarded work saved: ${snap:+refs/explore/backup-$stamp (tracked changes; git stash apply refs/explore/backup-$stamp) }${untracked:+$gitdir/explore-backups/$stamp.tar (untracked files)}"
+      fi
     fi
     ;;
 

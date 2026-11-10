@@ -22,7 +22,7 @@ In any project folder:
 | product | real users or a team | blocked | typecheck + lint | yes |
 | assignment | graded or course work | allowed | tests | no |
 
-Every profile blocks force push, `--no-verify`, reading `.env`, `rm -rf /`, `curl | sh`, and edits to hooks, secrets and lockfiles. What lands in the project: `CLAUDE.md` (a router under 100 lines), `docs/` (intent, architecture, conventions, workflow, lessons, agent guide), `.claude/hooks/` with `harness.conf`, `.claude/settings.json`, and a CI workflow that tests the hooks.
+Every profile blocks force push, `--no-verify`, reading `.env`, `rm -rf /`, `curl | sh`, and edits to hooks, secrets and lockfiles. Shell commands that look like they change the guardrails (a redirect, `sed -i`, `curl -o`, `patch`, `git checkout`, and similar) ask you first; that is a best-effort list, not a sandbox. What lands in the project: `CLAUDE.md` (a router under 100 lines), `docs/` (intent, architecture, conventions, workflow, lessons, agent guide), `.claude/hooks/` with `harness.conf`, `.claude/settings.json`, and a CI workflow that tests the hooks.
 
 ## Add one part, record lessons, review
 
