@@ -20,3 +20,5 @@ jobs:
         env:
           REQUIRE_CLAUDE: "1"
         run: bash tests/validate.sh
+      - name: Scaffold, profiles, hooks and discover lock
+        run: bash tests/scaffold-test.sh
