@@ -10,7 +10,7 @@ Read this before you spawn subagents or start a workflow.
 | Steps that depend on each other | Single agent + plan mode |
 | Exploration, goal not clear yet | Single agent the user steers |
 | One side task that would fill the context (search, log reading) | Subagent |
-| Independent check of finished work | `skeptic` subagent (fresh context) |
+| Independent check of finished work | fresh-context subagent, e.g. `dev-harness:skeptic` |
 | Wide, independent work: many files, many angles | Dynamic workflow |
 
 **Test:** if you cannot find two jobs with no data passing between them, do not parallelize.
@@ -19,7 +19,7 @@ Read this before you spawn subagents or start a workflow.
 
 | Name | File | Use for |
 |---|---|---|
-| `skeptic` | `.claude/agents/skeptic.md` | Try to disprove a diff before it is reported as done |
+| `dev-harness:skeptic` | plugin agent (from dev-harness v0.3.0) | Try to disprove a diff before it is reported as done |
 
 ## Rules for Multi-Agent Work
 

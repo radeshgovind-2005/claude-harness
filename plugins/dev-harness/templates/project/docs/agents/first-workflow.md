@@ -14,7 +14,7 @@ list files (max 10)
 
 ## 1. Prepare
 
-1. `git switch -c audit/first-workflow` (the harness blocks writes on `main`).
+1. `git switch -c audit/first-workflow` (the product profile blocks writes on `main`).
 2. `/config workflowSizeGuideline=small`
 3. Check the model with `/model`.
 

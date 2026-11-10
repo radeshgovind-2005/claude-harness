@@ -1,0 +1,5 @@
+- Assignment: the user must understand and be able to explain every part. Explain each step: what you change, why, and what concept it uses. Prefer small steps the user can follow.
+- Do not hand in work the user has not read. Point out where the brief's requirements are met (file:line).
+- `verify.sh` runs the tests when you stop. If they fail, fix them or tell the user why you cannot.
+- Plan mode for changes to more than 3 files: suggested.
+- Fresh-context review of a diff: recommended before submission.

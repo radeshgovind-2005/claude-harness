@@ -5,7 +5,7 @@ Read this before multi-step work, commits, or PRs.
 ## Plan → Execute → Verify
 
 1. **Plan.** For changes to more than 3 files, or unclear tasks, use plan mode. Show the plan. Wait for approval.
-2. **Execute.** Work on a branch or git worktree. Never on `main`.
+2. **Execute.** Work on a branch or git worktree. Product profile: never on `main` (a hook blocks it). Other profiles: `main` is allowed, but branch for risky changes.
 3. **Verify.** Run the Verification checklist in `CLAUDE.md`.
 
 ## Find Fake Edges (before you plan steps)
@@ -30,7 +30,7 @@ Do not continue from a state you cannot describe. If you lose track, stop and re
 - Branch name: `<type>/<short-description>` (types: feat, fix, refactor, docs, chore).
 - Small commits. One logical change per commit.
 - Commit message: imperative mood, e.g. "Add retry to payment client".
-- Push the branch and open a PR. Never push to `main`.
+- Product profile: push the branch and open a PR; never push to `main`. Other profiles: follow the user's habit.
 
 ## Parallel Work
 

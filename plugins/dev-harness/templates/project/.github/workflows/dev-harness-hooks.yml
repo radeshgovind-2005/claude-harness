@@ -1,0 +1,18 @@
+# Added by dev-harness. Proves the local guardrails still trip.
+# Local hooks stop mistakes, not deliberate bypass: also require this check
+# and protect your main branch in the Git host settings.
+name: dev-harness-hooks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  hooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate .claude/settings.json
+        run: jq empty .claude/settings.json
+      - name: Run hook tests
+        run: bash .claude/hooks/test-hooks.sh

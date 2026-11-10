@@ -1,0 +1,4 @@
+- Prototype: speed and learning beat polish. Relax "Keep it simple" toward "get it working", but keep code readable.
+- Working on `main` is fine. Commit often so experiments are easy to revert.
+- Plan mode for changes to more than 3 files: suggested.
+- Fresh-context review of a diff: optional. Use it before you show the work to anyone.
