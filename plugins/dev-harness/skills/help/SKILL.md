@@ -35,9 +35,11 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 |---|---|---|
 | `skeptic` | After a non-trivial change: tries to disprove it. Gets only the goal and the diff; reads and runs checks, has no edit tools (its `Bash` can still write, so check `git status`). Call it as `dev-harness:skeptic` | available |
 | `lens-reviewer` | Started by `lens`, one per angle (UX, DX, AX). Reads and runs checks, reports findings with evidence, has no edit tools (its `Bash` can still write). Call it as `dev-harness:lens-reviewer` | available |
-| `architect` | Structure and design trade-offs | planned v0.5.0 |
-| `designer` | UI, UX, visual quality | planned v0.5.0 |
-| `tester` | Missing tests; checks tests can actually fail | planned v0.5.0 |
+| `architect` | Before a larger change, or when a design choice is open: judges the structure (boundaries, who depends on whom), gives 2-3 options with their costs and one recommendation. Reports only; has no edit tools (its `Bash` can still write). Call it as `dev-harness:architect` | available |
+| `designer` | A user interface exists: judges hierarchy, spacing, consistency, states, contrast, focus and responsiveness from the source and any screenshots you give it. Says `NOT A UI` when there is none. Not the task flow (that is `lens` UX). Call it as `dev-harness:designer` | available |
+| `tester` | You doubt the tests: lists missing tests and breaks the logic in a temporary copy to see whether any test fails. Never changes your project (its `Bash` can still write, so check `git status`). Call it as `dev-harness:tester` | available |
+
+Which reviewer for what: `skeptic` asks "is this change wrong?", `lens-reviewer` asks "what does this person hit?", `architect` asks "is the structure right?", `designer` asks "is the interface well made?", `tester` asks "would the tests catch a break?".
 
 ## Profiles (chosen in `new`)
 

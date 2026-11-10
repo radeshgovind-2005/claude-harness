@@ -97,7 +97,7 @@ while IFS=$'\t' read -r name src; do
     tools=$(sed -n 's/^tools:[[:space:]]*//p' <<<"$afm")
     [ -n "$tools" ]; check "agent '$an' declares a tools list" $?
     # A reviewer that must not edit gets no edit tools.
-    case "$an" in skeptic|lens-reviewer)
+    case "$an" in skeptic|lens-reviewer|architect|designer|tester)
       ! grep -Eqi '(^|[ ,])(Edit|Write|MultiEdit|NotebookEdit)([ ,(]|$)' <<<"$tools"; check "agent '$an' has no edit tools (tools: $tools)" $? ;;
     esac
   done
