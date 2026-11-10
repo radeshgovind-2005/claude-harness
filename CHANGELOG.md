@@ -11,4 +11,8 @@ to detect updates.
 - Plugin manifest (`plugins/dev-harness/.claude-plugin/plugin.json`).
 - `/dev-harness:help` skill: every skill and agent, when to use it, one example, and its status.
 - `tests/validate.sh`: JSON syntax, manifest consistency, layout rules (no hooks in the plugin, kebab-case names), and `claude plugin validate`.
-- CI workflow running `tests/validate.sh`.
+- CI workflow running `tests/validate.sh` with `REQUIRE_CLAUDE=1`.
+
+### Verified
+- 20 validation checks pass; 15 broken-input cases each fail as expected.
+- Local marketplace install and `/dev-harness:help` tested. Install from GitHub not yet tested (repo not pushed).
