@@ -15,7 +15,7 @@ hooks:
 
 Run discovery for this project. Input from the user: $ARGUMENTS
 
-Discovery is a conversation, not a questionnaire. The user often does not yet know what matters most; work it out together. **Do not write code, scaffold, or install anything.** A hook blocks edits to every file except `docs/intent.md` while `docs/intent.md` says `status: discovering`.
+Discovery is a conversation, not a questionnaire. The user often does not yet know what matters most; work it out together. **Do not write code, scaffold, or install anything.** A hook blocks edits to every file except `docs/intent.md` while `docs/intent.md` says `status: discovering`. The hook lives only in the session where this skill was invoked; in a resumed or new session, follow the rule without it until discovery is decided.
 
 ## 0. Prepare
 

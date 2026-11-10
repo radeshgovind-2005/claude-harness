@@ -39,6 +39,7 @@ The script never overwrites; it prints `add`, `skip`, `merge`, `update`, `ok` or
    - Commit the setup (ask first).
    - Turn on branch protection and require the `dev-harness-hooks` CI check on the Git host. Local hooks stop mistakes, not deliberate bypass.
    - Any `<cmd>` placeholders left in `CLAUDE.md`.
+   - The `permissions.allow` rules in `.claude/settings.json` apply only after the user trusts this folder (Claude Code's trust dialog). Hooks, `deny` and `ask` rules apply right away.
 
 ## Rules
 
