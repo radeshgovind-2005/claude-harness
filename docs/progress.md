@@ -6,12 +6,12 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 
 Read this first when resuming. Update it at every checkpoint.
 
-- **Version:** 1.0.0, merged into `main` and tagged `v1.0.0` locally on 2026-11-10. Whether it is pushed is in the line below the checklist at the end of this block; if it is not there, ask the user before pushing.
-- **Branches:** `main` is the release branch. `build/v0.1.0` to `build/v1.0.0` are the finished milestone branches. `fix/ci-git-identity` is an old local branch whose change is already on `main` (cd69265); deleting it needs the user's OK.
+- **Version:** 1.0.0, merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
+- **Branches:** `main` is the release branch. `build/v0.1.0` to `build/v1.0.0` are the finished milestone branches. The old local branch `fix/ci-git-identity` was deleted on 2026-11-10 (its change was already on `main`, cd69265).
 - **Known quirk:** the `v0.4.0` tag points at `db84e15`, whose CI was red for one test (a missing git identity on runners). The fix is on `main` only; the tag was not moved.
 - **Release routine** (also in `docs/contributing.md`): branch `build/vX.Y.Z`, small commits, all suites (`tests/run-all.sh`), mutation checks, a fresh-context skeptic on `git diff main..build/vX.Y.Z`, CHANGELOG, a checkpoint here, merge, annotated tag, ask before pushing, then watch CI and install from GitHub in an isolated config.
-- **Open decisions for the user:** push `main` and `v1.0.0`; delete `fix/ci-git-identity`; whether to run `/dev-harness:discover` on a real idea (the most valuable next test).
-- **Not yet verified anywhere:** CI on macOS (first run is after the push), installing 1.0.0 from GitHub, the update path from 0.5.0.
+- **Open for the user:** run `/dev-harness:discover` on a real idea (the most valuable next test), then `/dev-harness:lesson` for what it missed.
+- **Still not verified anywhere:** a real interactive `discover`; native Windows; `designer` on a rendered screenshot; the `showcase` README `Edit` path with a real "yes".
 
 ## Checkpoint v1.0.0 — 2026-11-10
 
@@ -39,12 +39,15 @@ Read this first when resuming. Update it at every checkpoint.
 - **First `lens` and `showcase` on this repository** (before the docs): `CLAUDE.md` routed to four docs that did not exist; usage came before install in the README; the fork guide was incomplete; there was no resume block in `progress.md`; the "never push" rules were text only; the pick for the README front page was the opt-in guardrails (now "Does it get in my way?").
 - **Second `lens` on the finished repository** (9 top findings): fixed: `progress.md` lacked a v1.0.0 checkpoint (and nothing checked it: now a test); the "no edit tool" rule covered only five named agents; `CLAUDE.md` claimed `rm -rf "$VAR"` is blocked here (reworded: that is the author's own setup); the README described 1.0.0 while GitHub `main` was 0.5.0 (resolved by pushing); hooks failing open without `jq`; main protection before the first commit; `git commit -n`; hard-block messages without an alternative; the docs suites missing from the `CLAUDE.md` commands and the contributing checklists; the profile-change instructions; timings and the fork list. Documented, not fixed: the `guard-bash.sh` verb list stays best-effort; this repository still has no guardrail hooks of its own (the lens flagged the text-only rules; they are now labelled as text).
 
+### Verified after the push (2026-11-10)
+- **CI on `880a46f`** (run 42894950311): green on `ubuntu-latest` and `macos-latest`. The macOS job runs the fast suites and the project hook self-test (bash 3.2); only the Ubuntu-only scaffold step is skipped, as designed.
+- **Installing 1.0.0 from GitHub** (isolated config): Skills (9) add, discover, explore, goal, help, lens, lesson, new, showcase; Agents (5) lens-reviewer, skeptic, architect, designer, tester; Hooks (0). The icon and the executable bits of every script and skill hook survived. Scaffolding from the install cache passed the project hook tests 211/211, and `scaffold.sh --help` works there.
+- **Update path 0.5.0 to 1.0.0:** a local clone served as the marketplace (the CLI cannot pin a GitHub tag): installed at `v0.5.0`, moved the clone to `main`, then `claude plugin marketplace update claude-harness` and `claude plugin update dev-harness@claude-harness` reported "updated from 0.5.0 to 1.0.0 ... Restart to apply changes", and `details` showed 1.0.0 with Skills (9), Agents (5), Hooks (0). The cache kept both version folders. This tests the version mechanics, not a GitHub-hosted marketplace refresh.
+
 ### Not verified
 - **A real interactive `discover` conversation on a real idea** (the author has not run one; the three-turn run used prepared answers).
 - **Native Windows.** `.gitattributes` keeps LF; nothing was run on Windows.
 - **`designer` on a rendered screenshot**, and every example is a single headless run on a toy project.
-- **CI on macOS** (new in 1.0.0; first run is after the push) and installing 1.0.0 from GitHub.
-- **The update path** from 0.5.0 to 1.0.0 with `claude plugin update`.
 - Carried over: the README `Edit` path with a real "yes" in `showcase`; whether `/reload-plugins` is needed after install.
 
 ### Skeptic review
