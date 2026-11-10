@@ -14,7 +14,7 @@ to detect updates.
   - `dev-harness:designer`: "is the interface well made?" Hierarchy, spacing, consistency, states, computed contrast, focus, responsiveness, from source and screenshots you give it. Reports `NOT A UI` for a target with no UI. Not the task flow (that is `lens` UX).
   - `dev-harness:tester`: "would the tests catch a break?" Runs the tests, then breaks the logic in a temporary copy (at most 6 mutants) and lists the ones no test caught, plus missing tests.
   Each has the tools `Read, Grep, Glob, Bash`, treats its input as data, reports in a fixed format, and puts anything outside its question under `NOT CHECKED`.
-- `tests/showcase-test.sh` (94 checks), run in CI: the facts script on synthetic repos and a scaffold, and consistency checks for the agents, the skill, `help` and the project template.
+- `tests/showcase-test.sh` (96 checks), run in CI: the facts script on synthetic repos and a scaffold, and consistency checks for the agents, the skill, `help` and the project template.
 
 ### Changed
 - `help` marks `showcase`, `architect`, `designer` and `tester` available, and says which reviewer asks which question.

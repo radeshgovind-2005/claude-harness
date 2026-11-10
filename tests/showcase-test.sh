@@ -126,6 +126,8 @@ commit init; facts
 has '^FACT +experiment +— requests per second: baseline 100, best 190.5, 2 kept, 1 reverted; direction: higher is better$'; check "baseline, best, kept and reverted counts" $?
 cp "$P/templates/project/docs/experiments.md" "$D/docs/experiments.md"; facts
 has '^FACT +experiment +— docs/experiments.md has no measured rows'; check "the untouched template has no measured rows (its example row is not a result)" $?
+printf '| 2026-01-01 | baseline | `<value>` | — | baseline | not measured |\n| 2026-01-02 | tweak | `n/a` | — | kept | failed run |\n' >> "$D/docs/experiments.md"; facts
+has 'no measured rows'; check "rows whose metric is not a number (<value>, n/a) are not results" $?
 sed -i.bak '/| baseline |/d' "$D/docs/experiments.md"; rm -f "$D/docs/experiments.md.bak"
 printf '| 2026-01-03 | threads=4 | `140` | +40 | kept | faster |\n' >> "$D/docs/experiments.md"; facts
 has 'no baseline row, so no gain can be claimed'; check "a kept row with no baseline row claims nothing" $?
@@ -179,7 +181,8 @@ grep -q '^disable-model-invocation: true$' <<<"$fm"; check "showcase is user-inv
 for w in PICK WHY DEMO 'README SECTION' 'TALKING POINTS' 'DO NOT CLAIM' 'NOT VERIFIED'; do
   grep -q "^$w" "$S"; check "showcase output format has $w" $?
 done
-for w in VERIFIED READ UNVERIFIED; do grep -q "$w" "$S"; check "showcase labels claims $w" $?; done
+for w in VERIFIED READ UNVERIFIED; do grep -q "^- \`$w\`:" "$S"; check "showcase defines the claim label $w" $?; done
+grep -Eq '^allowed-tools:.*Bash\(bash \$\{CLAUDE_PLUGIN_ROOT\}/scripts/showcase-facts\.sh \*\)' <<<"$fm"; check "allowed-tools pre-approves exactly the facts script the skill runs" $?
 grep -qi 'never overwrite' "$S"; check "showcase never overwrites an existing README section" $?
 grep -q "^| \`showcase\` .*| available |$" "$P/skills/help/SKILL.md"; check "help marks showcase available" $?
 
