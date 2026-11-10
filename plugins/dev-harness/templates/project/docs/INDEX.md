@@ -8,6 +8,8 @@ Map of all project docs. Read only the file your task needs.
 | `conventions.md` | You write or name code | Rules that differ from language defaults |
 | `workflow.md` | You plan, branch, commit, or open a PR | Plan → execute → verify, checkpoints, git rules |
 | `lessons.md` | You fix a bug or something feels familiar | Past mistakes and the rule each one created |
+| `progress.md` | You resume work, hand off, or finish a step | Checkpoints: done, verified, not verified, next |
+| `experiments.md` | You try a variant against a metric | Baseline, variants, results, kept or reverted |
 | `agents/INDEX.md` | You consider subagents or a workflow | Which tool for which task shape |
 | `agents/first-workflow.md` | You run your first dynamic workflow | A safe, scoped, read-only audit |
 | `audits/` | You need a past audit report | Workflow outputs |

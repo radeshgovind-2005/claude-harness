@@ -44,6 +44,8 @@ Read the file for your task before you start. Do not read all files.
 | Naming, style, patterns               | `docs/conventions.md`       |
 | Multi-step task, plan, branch, PR     | `docs/workflow.md`          |
 | Bug or repeat problem                 | `docs/lessons.md`           |
+| Resuming work, handoff, what is done  | `docs/progress.md`          |
+| Trying variants against a metric      | `docs/experiments.md`       |
 | Subagents, parallel or wide work      | `docs/agents/INDEX.md`      |
 | Not sure                              | `docs/INDEX.md`             |
 
@@ -55,11 +57,12 @@ Folder-specific rules load automatically from `.claude/rules/`.
 - [ ] Tests for changed code pass (name the tests you ran)
 - [ ] Lint is clean
 - [ ] Edge cases the user asked about are checked
-- [ ] Non-trivial change: a fresh-context subagent reviewed the diff (it gets only the goal and the diff)
+- [ ] Non-trivial change: `dev-harness:skeptic` reviewed the diff (fresh context: give it only the goal and the diff)
 - [ ] Final report: what changed, what is verified, what is NOT verified
 
 ## Self-Update
 
-- When the user corrects you, add one entry to `docs/lessons.md` (or the user runs `/dev-harness:lesson`, from v0.3.0).
+- When the user corrects you, record it with `/dev-harness:lesson` (one entry in `docs/lessons.md`; a similar lesson is updated, not duplicated).
+- Before you stop on multi-step work, add a checkpoint to `docs/progress.md`.
 - If a lesson applies to every task, propose to move it into this file. Ask first.
 - Keep this file under 100 lines. Propose to delete rules that no longer prevent mistakes.

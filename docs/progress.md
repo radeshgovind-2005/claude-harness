@@ -2,6 +2,46 @@
 
 Handoff notes so a new session can resume. Newest checkpoint first.
 
+## Checkpoint v0.3.0 — 2026-11-10
+
+### Done
+- `/dev-harness:add <part>` (guardrails, reviewer, lessons, memory, workflows, rules, all). It reuses `scaffold.sh`, which gained `files --part NAME`; `--profile` is required only for the default and for `memory`. `all` is `files` then `guardrails` last, ordered by the skill.
+- `dev-harness:skeptic`, a plugin agent with `tools: Read, Grep, Glob, Bash`.
+- `/dev-harness:lesson`: updates a similar lesson, tags discovery lessons `[discover]`, asks before promoting. `discover` step 0 reads `[discover]` lessons first.
+- Templates `docs/progress.md` and `docs/experiments.md`, routed from the `CLAUDE.md` router and `docs/INDEX.md`. The checklist names `dev-harness:skeptic`.
+- Version 0.3.0. `help` shows `add`, `lesson` and `skeptic` as available.
+
+### Verified
+- `tests/validate.sh` 37/37 (new: agent tool checks, help-versus-reality checks, Skills (5) / Agents (1) / Hooks (0) from `claude plugin details`). `tests/scaffold-test.sh` 192/192 (new: each part writes exactly its file set, second runs only skip, `all` parts + guardrails equal `files` + guardrails, router and `INDEX.md` routing). shellcheck is clean at warning level.
+- Mutation checks: each of 15 injected bugs made a test fail (`--part` ignored, profile requirement dropped, overwrite guard removed, `.gitignore` line dropped, wrong file owner, stale version text, skeptic unnamed, `[discover]` tag removed, edit tool or `permissionMode` added to the skeptic, missing tools list, CHANGELOG mismatch, a ghost or missing skill in `help`). In the validate mutants the `--profile directory` check also fails, because the copy has no `.git` and so no README; the baseline copy fails it the same way.
+- Live headless runs with `--plugin-dir`:
+  - `add reviewer` wrote only `docs/agents/INDEX.md`.
+  - `add all --profile product` on `main` stopped before writing, because `git switch` is not allowed to the skill. On a prepared branch it wrote the full set with 138/138 hook tests, `PROFILE=product`, `BLOCK_MAIN=1`, and `VERIFY_CMD` from `package.json`.
+  - `lesson` added a new entry, then updated a near-duplicate in place (one entry), and left `CLAUDE.md` unchanged. A `[discover]` lesson was tagged correctly.
+  - `skeptic` reported a planted off-by-one at `calc.py:5` with a failing scenario and `CHANGES REQUESTED`. It approved a correct diff with no invented issues. Told to fix the bug with `sed -i` (allowed), it refused and the file was unchanged.
+
+### Skeptic review
+A fresh-context reviewer got the goal and `git diff main..build/v0.3.0`. Its verdict was CHANGES REQUESTED, with 6 issues (none high). It also reran `validate.sh` 37/37 and `scaffold-test.sh` 185/185 (before the fixes below; 192/192 after) and found no defects in overwrite safety, dry run, second runs, bash 3.2 compatibility, `.gitignore` handling, or `all` equals `new`.
+- **Fixed:**
+  - `--part memory` wrote a router that points at files owned by `workflows` and `reviewer`. The script now prints a `note` naming each missing file and the part that adds it, the `add` skill reports it, and the README memory row no longer claims `intent`.
+  - An empty `--part ""` meant "all parts". It is now rejected.
+  - Two weak test assertions: the `docs/INDEX.md` check could pass on `progress.md` alone, and the stale-version check passed when a file was missing.
+- **Documented, not fixed:**
+  - The skeptic's "never edits" is only partly enforced (`Bash` can write, and `guard-bash.sh` guards only protected paths). The wording was corrected in the CHANGELOG, README, help and `agents/INDEX.md`.
+  - The guardrails phase now adds a `skip .gitignore` line to `new`'s output. It was already in the CHANGELOG.
+- **Not checked by the reviewer:** live skill behaviour, and that `all` writes guardrails last (skill text only, no test).
+
+### Not verified
+- **Interactive prompts.** In headless mode `AskUserQuestion` cannot be answered, so "asks before promoting to `CLAUDE.md`" is shown only as "did not edit `CLAUDE.md`". For a universal rule the model chose not to promote because it duplicated a checklist line, instead of asking.
+- **The skeptic's "never edits" is not enforced.** `tools` removes Edit and Write but not shell writes. The refusal above comes from the agent's instructions. Test runs can create files (`__pycache__` appeared once). In projects with the guardrails, `guard-bash.sh` and `protect-paths.sh` also fire on subagent tool calls (per the docs; not tested live), but they guard only protected paths, not source files.
+- **`discover` actually reading a `[discover]` lesson in a live run.** Only the instruction text and the tag consistency are tested.
+- **`CLAUDE.md` placeholder filling by `add` in headless mode.** The `Edit` needs approval, so the skill reported the placeholders as unfilled.
+- **CI on ubuntu and an install from GitHub for 0.3.0.** Neither has run: nothing is pushed.
+- Carried over: a real interactive discover conversation; the assignment profile end to end in a live session; Windows and CRLF checkouts of the hook scripts.
+
+### Next
+- v0.4.0: `explore`, `lens`, `goal`.
+
 ## Checkpoint v0.2.0 — 2026-11-10
 
 ### Done
@@ -20,6 +60,8 @@ Handoff notes so a new session can resume. Newest checkpoint first.
   - **new, prototype profile** (hardened hooks): 138/138 hook tests. A `Write` on main was allowed and `git push --force` was blocked.
   - **Stop hook:** a failing `VERIFY_CMD` blocked the first stop and sent the error back. Claude explained it without editing `harness.conf`, and the second stop passed (`stop_hook_active` works). The run took 29 s.
 - `claude plugin details`: Skills (3), Hooks (0). Template dotfiles and exec bits survive into the install cache.
+- **CI on ubuntu** (run on `9c958e4`): `validate.sh` 27/27 and `scaffold-test.sh` 136/136 passed.
+- **Installing v0.2.0 from GitHub:** gave version 0.2.0, 3 skills, Hooks (0). Scaffolding from the install cache passed the project hook tests, 138/138.
 
 ### Skeptic review
 The verdict was CHANGES REQUESTED, with 15 issues (3 high). All were fixed or documented in `415f04f`:
@@ -29,8 +71,6 @@ The verdict was CHANGES REQUESTED, with 15 issues (3 high). All were fixed or do
 ### Not verified
 - **A real interactive discover conversation with the user.** Recommended next, on a real idea.
 - **`--continue` or resume of a discover session.** The lock is not re-registered, so it isn't enforced there. This is documented in the skill.
-- **CI on ubuntu for the new tests.** It runs on push.
-- **Installing v0.2.0 from GitHub.** It isn't pushed yet.
 - **The assignment profile end to end in a live session.** It is covered by the scaffold tests only.
 - **Windows and CRLF checkouts of the hook scripts themselves.** The conf parsing is CRLF-safe.
 

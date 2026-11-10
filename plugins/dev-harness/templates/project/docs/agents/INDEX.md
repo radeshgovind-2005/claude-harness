@@ -19,7 +19,7 @@ Read this before you spawn subagents or start a workflow.
 
 | Name | File | Use for |
 |---|---|---|
-| `dev-harness:skeptic` | plugin agent (from dev-harness v0.3.0) | Try to disprove a diff before it is reported as done |
+| `dev-harness:skeptic` | plugin agent (needs the dev-harness plugin installed) | Try to disprove a diff before it is reported as done. Give it only the goal and the diff. It has no edit tools and is told not to write, but its `Bash` can still write: check `git status` after a review |
 
 ## Rules for Multi-Agent Work
 
