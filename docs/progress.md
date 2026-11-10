@@ -41,13 +41,17 @@ A fresh-context reviewer got the goal and `git diff main..build/v0.4.0`. Its ver
 - **Documented, not fixed:** two simultaneous Stop events can count as one round (bounded); a check that detaches with `setsid` escapes the process-group kill.
 - **Not checked by the reviewer:** live behaviour (covered above), the built-in `/goal` claims, real lens runs, Windows and CRLF.
 
+### Verified after the push (2026-11-10)
+- **Installing v0.4.0 from GitHub** (isolated config): version 0.4.0, Skills (8), Agents (2), Hooks (0), executable bits kept (`goal-stop.sh`, `explore.sh`, `goal.sh`, `ax-check.sh`). Scaffolding from the install cache passed the project hook tests 172/172; `ax-check.sh` and `explore.sh start` ran from the cache.
+- **CI on `db84e15` was partly red.** `validate.sh` 44/44 and `scaffold-test.sh` 192/192 passed on ubuntu. `explore-test.sh` failed 14 of 83, all in `keep`: the runner has no git identity, so `git commit` failed. This is a test-environment gap, not a plugin bug (`explore.sh` correctly does not invent an identity; on a machine without one, `keep` fails loudly and rolls its log row back). Reproduced locally with `user.useConfigOnly=true` (69/83), fixed by giving the test an identity (83/83). The fix is test-only, so the `v0.4.0` tag was not moved. **The tag points at a commit whose CI is red for that test file.**
+
 ### Not verified
 - **The built-in `/goal` claims in the README** come from the docs research, not from running it.
 - **`--continue`/resume of a goal session.** The hook is not re-registered (documented); the stale-state path is covered by unit tests only.
 - **The 8-block cap** ("Claude Code ends a turn after 8 consecutive stop-hook blocks") is from the docs and was not provoked.
 - **The user's confirmation prompts.** In headless mode the confirmation of the check or metric command, and the permission prompt for `goal.sh start` / the Metric `Edit`, cannot be answered; the runs passed the confirmation in the prompt and `--allowedTools`.
 - **Reviewers obeying "do not write".** `lens` compares `git status -uall` before and after; in the live run nothing changed, but `Bash` can write.
-- **To confirm after the push:** CI on ubuntu for the three new test files, and an install from GitHub for 0.4.0.
+- **CI on ubuntu for the `lens` and `goal` tests.** The ubuntu job stops at its first failing step, so these two never ran there (see below). They pass locally with no git identity.
 - Carried over: a real interactive discover conversation; the assignment profile end to end in a live session; Windows and CRLF.
 
 ### Next

@@ -7,6 +7,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 EX="$ROOT/plugins/dev-harness/scripts/explore.sh"
 pass=0; fail=0
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
+# explore.sh commits with whatever identity git has; CI has none, so give the tests one.
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 
 check() { if [ "$2" = 0 ]; then echo "  PASS  $1"; pass=$((pass+1)); else echo "  FAIL  $1"; fail=$((fail+1)); fi; }
 g() { git -C "$D" -c user.email=t@t -c user.name=t "$@"; }

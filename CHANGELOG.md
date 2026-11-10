@@ -31,6 +31,7 @@ to detect updates.
 - **The `lens` reviewers, like the skeptic, have no edit tools but their `Bash` can write.** The skill runs `git status --short` afterwards and reports changes.
 - **Two simultaneous Stop events can count as one round** (the round counter is read-increment-write without a lock). The loop stays bounded.
 - **A check that detaches itself (`setsid`) escapes the process-group kill** when it times out.
+- **`explore keep` needs a git identity** (`user.name` and `user.email`). Without one the commit fails, `keep` says so, rolls its log row back and can be retried. The explore tests set an identity, because CI runners have none.
 - **`explore` trusts the metric command.** It cannot tell a metric that has been gamed from a real gain; the skill forbids changing the measurement, and the report lists what is not verified. Noise needs `--runs`.
 
 ## 0.3.0 — 2026-11-10
