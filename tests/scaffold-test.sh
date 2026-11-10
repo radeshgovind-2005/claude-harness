@@ -7,6 +7,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 P="$ROOT/plugins/dev-harness"
 SC="$P/scripts/scaffold.sh"
 LOCK="$P/skills/discover/discover-lock.sh"
+TPL_LESSONS="$P/templates/project/docs/lessons.md"
 pass=0; fail=0
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
 
@@ -185,6 +186,18 @@ for prof in prototype product assignment; do
   grep -q 'dev-harness:skeptic' "$d/CLAUDE.md" && grep -q 'dev-harness:skeptic' "$d/docs/agents/INDEX.md"; check "$prof: CLAUDE.md and agents/INDEX.md name dev-harness:skeptic" $?
   grep -q 'from v0\.' "$d/CLAUDE.md" "$d/docs/agents/INDEX.md"; [ $? -ne 0 ]; check "$prof: no stale 'from v0.x' in rendered templates" $?
   grep -q 'docs/progress.md' "$d/docs/INDEX.md" && grep -q 'docs/experiments.md' "$d/docs/INDEX.md" || grep -q '`progress.md`' "$d/docs/INDEX.md"; check "$prof: docs/INDEX.md lists progress.md" $?
+done
+
+# .gitignore: the files phase adds both personal files; guardrails alone adds the settings one
+d=$(newrepo); bash "$SC" "$d" files --profile prototype >/dev/null 2>&1
+grep -qxF ".claude/settings.local.json" "$d/.gitignore" && grep -qxF "CLAUDE.local.md" "$d/.gitignore"; check "files phase ignores both personal files" $?
+d=$(newrepo); bash "$SC" "$d" guardrails --profile prototype >/dev/null 2>&1
+grep -qxF ".claude/settings.local.json" "$d/.gitignore"; check "guardrails alone ignores .claude/settings.local.json" $?
+d=$(newrepo); bash "$SC" "$d" files --part lessons >/dev/null 2>&1
+[ ! -e "$d/.gitignore" ]; check "lessons part does not touch .gitignore" $?
+# the [discover] tag has to agree across the lesson skill, the discover skill and the template
+for f in "$P/skills/lesson/SKILL.md" "$P/skills/discover/SKILL.md" "$TPL_LESSONS"; do
+  grep -qF '[discover]' "$f"; check "[discover] tag named in ${f#"$P"/}" $?
 done
 
 echo "Bad input"
