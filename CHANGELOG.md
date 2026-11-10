@@ -4,6 +4,35 @@ All notable changes to the `dev-harness` plugin. Versions match `version` in
 `plugins/dev-harness/.claude-plugin/plugin.json`, which is what Claude Code uses
 to detect updates.
 
+## 0.4.0 — 2026-11-10
+
+### Added
+- `/dev-harness:explore`: an experiment loop. Agree a metric (a command that prints a number), then one change per variant: `scripts/explore.sh` measures it, decides keep or revert from the number, commits kept variants, restores the tree for reverted ones, and logs every row in `docs/experiments.md`. It stops at the target or after 2 variants in a row with no improvement. It works on an `explore/<slug>` branch (from any branch, never on a detached HEAD) and refuses to keep or revert anywhere else. `revert` saves what it discards under `refs/explore/` and `.git/explore-backups/`. 83 tests.
+- `/dev-harness:lens`: reviews a target from three angles in fresh context (UX: the person who uses it, DX: the next developer, AX: an AI agent working in the project) with three `dev-harness:lens-reviewer` agents started in one message. It checks the fan-in, merges duplicates, ranks, and changes nothing. `scripts/ax-check.sh` gives the AX reviewer script-checked facts (router length, routed paths exist, hooks executable and settings.json valid, placeholders, profile, intent status). 36 tests.
+- `/dev-harness:goal`: a goal loop judged by a command, not a model. A Stop hook (`goal-stop.sh`) runs the success check each time Claude tries to finish, sends it back with the failure and asks for a checkpoint in `docs/progress.md`, and ends the loop on success or when the budget of rounds and minutes is used up, each time after one final-report turn. State lives in `~/.claude/dev-harness/goals/<session>.json`. `goal.sh start` is not pre-approved, so Claude Code asks and shows the exact check command. 60 tests.
+- `scripts/lib.sh`: `run_limited`, a watchdog that kills a command and its process group (macOS has no `timeout`).
+
+### Changed
+- `validate.sh`: the lens reviewer has no edit tools, `goal` may declare a frontmatter hook (state-gated), counts Skills (8), Agents (2), Hooks (0).
+- The `docs/experiments.md` template has `Direction` and `Target` lines that `explore.sh` reads.
+- CI runs the explore, lens and goal tests.
+- `guard-bash.sh` no longer asks for confirmation on read-only commands that name `.claude/hooks/` or `.claude/settings.json` and redirect to `/dev/null` or copy a descriptor (`cat .claude/hooks/verify.sh 2>/dev/null`, `ls .claude/hooks 2>&1`). Found by `lens` reviewing a scaffolded project. A redirect into a hook (`> .claude/hooks/y.sh`, `2>.claude/hooks/err`) still asks. Because that redirect check used to catch other writes by accident, the verb list is now wider: `sed -i.bak`, `curl -o`, `wget`, `patch`, `rsync`, `tar`, `touch`, `mkdir`, editors, `git checkout/restore/apply/stash/...`, and inline `python -c`/`node -e`. It remains a best-effort list, not a sandbox. The project's hook tests grow from 138 to 172.
+- `explore.sh baseline` removes the template's example row from the log table.
+- `ax-check.sh` ignores globs, `#anchors`, `:line` suffixes and the optional `settings.local.json` in routed paths, and fails on an invalid `settings.json`.
+- `run_limited` polls instead of starting a watchdog process, so no `sleep` is left behind, and keeps only the last 20 KB of output. The `goal` hook sends back at most 4000 bytes without control characters, and does nothing if the goal's project folder is gone.
+- `explore.sh` reads numbers like `.75`, refuses `1,234` instead of reading `234`, and says when the last line has several numbers.
+
+### Known limits
+- **`goal` is not the built-in `/goal`.** The built-in one lets a small model judge the conversation. This one runs your command. Use it when the goal can be a command.
+- **No token budget.** Hooks receive no token count and the transcript format is not documented, so only rounds and minutes are enforced. A "round" is one time Claude ends its turn, not one tool call. For headless runs use `--max-budget-usd`.
+- **The `goal` hook lives in the session that ran the skill.** After `--continue` or a resume it is not registered again; `goal.sh status` may show a stale active goal and `goal.sh stop` clears it. The hook stays registered after the goal ends but does nothing.
+- **`goal` state is not tamper-proof.** It is outside the project, but a shell command can edit it. A damaged state file ends the loop (fail open) with a message.
+- **Claude Code ends a turn after 8 consecutive stop-hook blocks with no tool call.** A loop that does real work resets the count.
+- **The `lens` reviewers, like the skeptic, have no edit tools but their `Bash` can write.** The skill runs `git status --short` afterwards and reports changes.
+- **Two simultaneous Stop events can count as one round** (the round counter is read-increment-write without a lock). The loop stays bounded.
+- **A check that detaches itself (`setsid`) escapes the process-group kill** when it times out.
+- **`explore` trusts the metric command.** It cannot tell a metric that has been gamed from a real gain; the skill forbids changing the measurement, and the report lists what is not verified. Noise needs `--runs`.
+
 ## 0.3.0 — 2026-11-10
 
 ### Added

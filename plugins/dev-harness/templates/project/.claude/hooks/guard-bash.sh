@@ -71,7 +71,14 @@ fi
 
 # --- Guardrail config: only the user changes it ---
 P='\.claude/(hooks/|settings\.json)'
-if grep -Eqi "$P" <<<"$cmd" && grep -Eqi "(>|(^|[;&|[:space:]])(sed[[:space:]]+-[a-z]*i|perl[[:space:]]+-[a-z]*i|rm|mv|cp|tee|truncate|chmod|ln|install|dd)[[:space:]])" <<<"$cmd"; then
+# A redirect to /dev/null or a file-descriptor copy (2>/dev/null, &>/dev/null, 2>&1) writes nothing,
+# so it must not make a read-only command look like a write.
+safe=$(sed -E 's/[0-9]*>&[0-9-]+//g; s/(&|[0-9]+)?>>?[[:space:]]*\/dev\/null//g' <<<"$cmd")
+# Commands that write, move, delete or fetch into files. A best-effort list, not a sandbox: a command that
+# is not on it (a script, an unusual tool) can still change the guardrails. Branch protection and CI on the
+# Git host are the real backstop.
+V='sed[[:space:]]+(-[a-zA-Z]*i|--in-place)[^[:space:]]*|perl[[:space:]]+-[a-zA-Z]*i[^[:space:]]*|awk[[:space:]].*inplace|rm|mv|cp|tee|truncate|chmod|ln|install|dd|touch|mkdir|patch|rsync|tar|unzip|cpio|vi|vim|nano|ed|ex|emacs|xargs|find[[:space:]].*(-delete|-exec)|(curl|wget)[[:space:]].*(-o|-O|--output|--output-document)|git[[:space:]]+(checkout|restore|apply|am|stash|merge|rebase|pull|cherry-pick|revert|reset|clean)|(python[0-9.]*|node|ruby|perl|php)[[:space:]]+-[a-zA-Z]*[ce]'
+if grep -Eqi "$P" <<<"$cmd" && grep -Eqi "(>|(^|[;&|[:space:]])($V)([[:space:]]|$))" <<<"$safe"; then
   ask "This command may change .claude/hooks/ or .claude/settings.json (the guardrails). Only the user should approve that."
 fi
 

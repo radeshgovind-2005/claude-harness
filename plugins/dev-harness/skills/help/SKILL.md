@@ -24,9 +24,9 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 | `new` | Full setup of a project: discover, pick a profile (prototype / product / assignment), scaffold files. Never overwrites | `/dev-harness:new a CLI that tracks my reading list` | available |
 | `add <part>` | Add one part to an existing project: guardrails, reviewer, lessons, memory, workflows, rules, all. Never overwrites | `/dev-harness:add guardrails` | available |
 | `lesson` | You corrected Claude; record it in `docs/lessons.md` so it does not repeat. Updates a similar lesson; asks before promoting to `CLAUDE.md`. Lessons about discovery feed the next `discover` | `/dev-harness:lesson ran tests in the wrong folder` | available |
-| `explore` | You want to try variants against a metric: keep what improves, revert what doesn't. Logs `docs/experiments.md` | `/dev-harness:explore cut p95 latency of /search` | planned v0.4.0 |
-| `lens` | Review the work from three angles: user (UX), developer (DX), agent (AX) | `/dev-harness:lens the onboarding flow` | planned v0.4.0 |
-| `goal` | Work toward a success check on autopilot, with a turn budget and a checkpoint each step | `/dev-harness:goal all tests in tests/api pass` | planned v0.4.0 |
+| `explore` | You want to make a number better and the best change is not obvious. One change at a time: a script measures it, keeps what improves, reverts what doesn't, and logs `docs/experiments.md`. Stops at the target or after 2 variants with no gain | `/dev-harness:explore cut p95 latency of /search` | available |
+| `lens` | Review the work from three angles in fresh context: user (UX), next developer (DX), AI agent (AX). One ranked list with evidence; changes nothing | `/dev-harness:lens the onboarding flow` | available |
+| `goal` | Keep working until a command exits 0, with a budget of rounds and minutes (no token budget). A Stop hook runs the check, not a model; a checkpoint goes to `docs/progress.md` each round. Not the built-in `/goal` | `/dev-harness:goal pytest tests/api -q passes` | available |
 | `showcase` | Find the most impressive part and turn it into a demo, README section, talking points | `/dev-harness:showcase` | planned v0.5.0 |
 
 ## Agents
@@ -34,6 +34,7 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 | Agent | Use it when | Status |
 |---|---|---|
 | `skeptic` | After a non-trivial change: tries to disprove it. Gets only the goal and the diff; reads and runs checks, has no edit tools (its `Bash` can still write, so check `git status`). Call it as `dev-harness:skeptic` | available |
+| `lens-reviewer` | Started by `lens`, one per angle (UX, DX, AX). Reads and runs checks, reports findings with evidence, has no edit tools (its `Bash` can still write). Call it as `dev-harness:lens-reviewer` | available |
 | `architect` | Structure and design trade-offs | planned v0.5.0 |
 | `designer` | UI, UX, visual quality | planned v0.5.0 |
 | `tester` | Missing tests; checks tests can actually fail | planned v0.5.0 |
@@ -52,8 +53,8 @@ Force push, `--no-verify`, reading `.env`, `rm -rf /`, `curl | sh` and editing h
 ## How it works
 
 - Skills and agents live in the plugin and work in every project.
-- Strict hooks are copied **into** a project only when you choose a profile in `new`. The plugin itself ships no always-on hooks. `discover` adds one while discovery is open: it blocks code edits until `docs/intent.md` says `status: decided`.
-- Profile settings live in `.claude/hooks/harness.conf`. Only you edit it: Claude's file edits there are blocked, and shell commands that change it ask you first.
+- Strict hooks are copied **into** a project only when you choose a profile in `new`. The plugin itself ships no always-on hooks. Two skills register a hook for the rest of the session in which they run, and each does nothing unless its own state says it is active: `discover` blocks code edits until `docs/intent.md` says `status: decided`, and `goal` runs your success check when Claude tries to stop.
+- Profile settings live in `.claude/hooks/harness.conf`. Only you edit it: Claude's file edits there are blocked, and shell commands that look like they change it ask you first (a best-effort list of common commands, not a sandbox).
 - Local hooks stop mistakes, not deliberate bypass. Use branch protection and required CI on your Git host too.
 
 Source and issues: https://github.com/radeshgovind-2005/claude-harness

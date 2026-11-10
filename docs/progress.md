@@ -2,6 +2,57 @@
 
 Handoff notes so a new session can resume. Newest checkpoint first.
 
+## Checkpoint v0.4.0 — 2026-11-10
+
+### Done
+- `/dev-harness:explore` + `scripts/explore.sh`: a referee for the experiment loop. It measures a metric command (median of N runs), keeps a variant only if it beats the best (commit), otherwise restores the tree, logs every row in `docs/experiments.md`, and stops at the target or after 2 variants in a row without gain. It works on an `explore/<slug>` branch and refuses a detached HEAD. `revert` saves what it discards under `refs/explore/` and `.git/explore-backups/`.
+- `/dev-harness:lens` + `agents/lens-reviewer.md` + `scripts/ax-check.sh`: UX, DX and AX reviews by three fresh-context agents started in one message, with script-checked facts for AX, a fan-in count, and a `git status -uall` comparison afterwards.
+- `/dev-harness:goal` + `scripts/goal.sh` + `skills/goal/goal-stop.sh`: a goal loop judged by a command's exit code. Stop hook, state-gated per session, budget of rounds and minutes (no tokens: hooks get no token count), one final-report turn after success or budget. State in `~/.claude/dev-harness/goals/`.
+- `scripts/lib.sh` (`run_limited`, `last_number`): a polling runner with a process-group kill, no leftover sleep, and a 20 KB output cap.
+- Version 0.4.0, `help`, README ("goal vs the built-in /goal"), CHANGELOG, CI runs the three new test files.
+- Decisions made with you: `goal` is command-judged (not a helper for the built-in `/goal`); the budget is rounds + minutes.
+- Found by `lens` on a real scaffold, fixed: `guard-bash.sh` asked for confirmation on `cat .claude/hooks/x 2>/dev/null`. See the CHANGELOG for the wider verb list that came with it.
+
+### Verified
+- `validate.sh` 44/44 (Skills (8), Agents (2), Hooks (0); the lens reviewer has no edit tools; `goal` is the only other skill with a frontmatter hook), `scaffold-test.sh` 192/192, `explore-test.sh` 83, `lens-test.sh` 36, `goal-test.sh` 60, project `test-hooks.sh` 172 per scaffold. shellcheck clean at warning level.
+- Mutation checks: 35 mutants before the review, 30 more for the review fixes, each made a test fail. Survivors found and fixed: a non-numeric `keep` caught only by a later guard (now asserts the message), a detached-HEAD guard hidden by the branch guard (now asserts the message), the `run_limited` output cap (now tested directly), and a weak `2>&1` hook test. One mutant (a `sleep` left behind) makes the suite hang instead of fail, which is the bug it simulates. In the validate mutants the `--profile directory` check fails in any copy without `.git`; the baseline copy fails it too.
+- Spikes: a skill-frontmatter Stop hook fires in `-p` mode; the hook's `session_id` equals the skill's `${CLAUDE_SESSION_ID}`; `CLAUDE_PLUGIN_DATA` is substituted in skill text but **not set in the hook's environment** under `--plugin-dir`, so goal state lives under `$HOME/.claude/dev-harness`; a plugin agent can be spawned by a skill without `Agent` in `allowed-tools`.
+- Live headless runs with `--plugin-dir`, twice (before and after the review fixes):
+  - **explore:** baseline 11; a bold variant (`threads=8`) scored 4 and was reverted; `threads=4` scored 20 and was kept; it stopped at the target. The final report named the branch and commit correctly.
+  - **goal, met:** 3 rounds, a checkpoint in `docs/progress.md` each round, one final report; state `finished/met`; the session then ended (no endless loop).
+  - **goal, budget:** an impossible check with 2 rounds stopped after 2 rounds, the report said the goal was **not** met, `check.sh` was untouched, state `finished/budget`.
+  - **lens:** 3 of 3 reviewers returned in the fixed format, with `file:line` evidence, on a scaffolded project; `git status` was unchanged.
+
+### Skeptic review
+A fresh-context reviewer got the goal and `git diff main..build/v0.4.0`. Its verdict was CHANGES REQUESTED, with 14 issues (1 high, 5 medium, 8 low). It also confirmed that the goal hook is state-gated and cannot loop, that revert keeps ignored files, staged files and nested folders, and that the plugin ships no always-on hooks.
+- **Fixed:**
+  - High: a user file such as `docs/experiments.md.bak` hid from the clean-tree check, and `revert` then deleted it. The check now compares the exact path, and `revert` backs up what it discards.
+  - `awk -v` turned `\n` and `\t` in variant text into line breaks, corrupting the log and the best value. Rows are now passed via `ENVIRON`.
+  - A failing commit left a `kept` row and a moved best value. The row is now rolled back and `keep` can be retried.
+  - `last_number` misread `.5`, `1,234` and dates. It reads leading-dot numbers, refuses thousands separators and notes lines with several numbers.
+  - My `/dev/null` strip in `guard-bash.sh` exposed that the verb list never covered `sed -i.bak`, `curl -o`, `patch`, `rsync`, `git checkout` and inline interpreters. All now ask. The docs say it is a best-effort list.
+  - `ax-check` false FAILs (globs, `#anchor`, `:line`, `settings.local.json`) and a PASS for an invalid `settings.json`.
+  - The watchdog left a `sleep` process per run. The runner now polls.
+  - A check printing one huge line or escape codes flooded the feedback. It is capped at 4000 bytes and stripped.
+  - A vanished project folder ran the check elsewhere. The hook now fails open with a message.
+  - `explore` branched only from `main` and committed on a detached HEAD. It now branches from any non-`explore/` branch and refuses a detached HEAD.
+  - `allowed-tools` pre-approved installing a check or metric command. `goal.sh start` and the Metric `Edit` now prompt, which shows the exact command.
+  - A test count in the CHANGELOG was wrong.
+- **Documented, not fixed:** two simultaneous Stop events can count as one round (bounded); a check that detaches with `setsid` escapes the process-group kill.
+- **Not checked by the reviewer:** live behaviour (covered above), the built-in `/goal` claims, real lens runs, Windows and CRLF.
+
+### Not verified
+- **The built-in `/goal` claims in the README** come from the docs research, not from running it.
+- **`--continue`/resume of a goal session.** The hook is not re-registered (documented); the stale-state path is covered by unit tests only.
+- **The 8-block cap** ("Claude Code ends a turn after 8 consecutive stop-hook blocks") is from the docs and was not provoked.
+- **The user's confirmation prompts.** In headless mode the confirmation of the check or metric command, and the permission prompt for `goal.sh start` / the Metric `Edit`, cannot be answered; the runs passed the confirmation in the prompt and `--allowedTools`.
+- **Reviewers obeying "do not write".** `lens` compares `git status -uall` before and after; in the live run nothing changed, but `Bash` can write.
+- **To confirm after the push:** CI on ubuntu for the three new test files, and an install from GitHub for 0.4.0.
+- Carried over: a real interactive discover conversation; the assignment profile end to end in a live session; Windows and CRLF.
+
+### Next
+- v0.5.0: `showcase`, and the `architect`, `designer` and `tester` agents.
+
 ## Checkpoint v0.3.0 — 2026-11-10
 
 ### Done
@@ -31,12 +82,14 @@ A fresh-context reviewer got the goal and `git diff main..build/v0.3.0`. Its ver
   - The guardrails phase now adds a `skip .gitignore` line to `new`'s output. It was already in the CHANGELOG.
 - **Not checked by the reviewer:** live skill behaviour, and that `all` writes guardrails last (skill text only, no test).
 
+- **CI on ubuntu** (run on `bdca793`, after the push): `validate.sh` 37/37 and `scaffold-test.sh` 192/192 passed.
+- **Installing v0.3.0 from GitHub** (isolated config): version 0.3.0, Skills (5), Agents (1), Hooks (0). Scaffolding from the install cache printed the expected `note` lines for `--part memory`, and the project hook tests passed 138/138.
+
 ### Not verified
 - **Interactive prompts.** In headless mode `AskUserQuestion` cannot be answered, so "asks before promoting to `CLAUDE.md`" is shown only as "did not edit `CLAUDE.md`". For a universal rule the model chose not to promote because it duplicated a checklist line, instead of asking.
 - **The skeptic's "never edits" is not enforced.** `tools` removes Edit and Write but not shell writes. The refusal above comes from the agent's instructions. Test runs can create files (`__pycache__` appeared once). In projects with the guardrails, `guard-bash.sh` and `protect-paths.sh` also fire on subagent tool calls (per the docs; not tested live), but they guard only protected paths, not source files.
 - **`discover` actually reading a `[discover]` lesson in a live run.** Only the instruction text and the tag consistency are tested.
 - **`CLAUDE.md` placeholder filling by `add` in headless mode.** The `Edit` needs approval, so the skill reported the placeholders as unfilled.
-- **CI on ubuntu and an install from GitHub for 0.3.0.** Neither has run: nothing is pushed.
 - Carried over: a real interactive discover conversation; the assignment profile end to end in a live session; Windows and CRLF checkouts of the hook scripts.
 
 ### Next
