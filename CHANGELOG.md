@@ -4,6 +4,24 @@ All notable changes to the `dev-harness` plugin. Versions match `version` in
 `plugins/dev-harness/.claude-plugin/plugin.json`, which is what Claude Code uses
 to detect updates.
 
+## 1.0.0 — 2026-11-10
+
+From this version the user-facing surface is stable and follows semantic versioning: see `docs/stability.md` for exactly what is frozen. This release changes no skill or agent behaviour; it is documentation, tests and polish.
+
+### Added
+- Docs: `docs/getting-started.md` (install, the three profiles, a walkthrough for each), `docs/reference.md` (every skill, agent and script), `docs/how-it-works.md` (what code enforces and what text advises, platforms, all known limits in one place), `docs/stability.md`, `docs/contributing.md` (tests, adding a skill or agent, releasing, forking).
+- `examples/`: real output from each of the main skills and agents, captured from headless runs on toy projects, each with a header that names the plugin version, the command and how it was run.
+- `tests/docs-test.sh`: local Markdown links resolve, the README status equals `plugin.json`, every skill and agent in `help` is in `reference.md`, no stale "planned" text, examples carry their header, shell files have LF endings, the icon is a valid square PNG.
+- `tests/run-all.sh`: every suite, one summary, non-zero on any failure (`--fast` skips the 4-minute scaffold suite).
+- CI runs on Ubuntu and macOS (bash 3.2); the scaffold suite stays on Ubuntu only.
+- `.gitattributes` keeps LF line endings for scripts, JSON, YAML and Markdown, so a Windows checkout cannot break the hook shebangs.
+- A repository `CLAUDE.md` router for contributors and for an AI agent working here.
+- A plugin icon (`.claude-plugin/icon.png`), a plain generated glyph. `claude plugin validate --profile directory` now has no warning.
+
+### Changed
+- README is now a front door: install first, a five-minute tour, "Does it get in my way?", the skill and agent tables, honest limits, and links. Found by running `lens` and `showcase` on this repository.
+- `BRIEF.md` moved to `docs/brief.md`.
+
 ## 0.5.0 — 2026-11-10
 
 ### Added
