@@ -6,7 +6,7 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 
 Read this first when resuming. Update it at every checkpoint.
 
-- **Version:** 1.0.1 (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
+- **Version:** 1.0.1, pushed and released on GitHub (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
 - **Branches:** `main` is the release branch. `build/v0.1.0` to `build/v1.0.0` are the finished milestone branches. The old local branch `fix/ci-git-identity` was deleted on 2026-11-10 (its change was already on `main`, cd69265).
 - **Known quirk:** the `v0.4.0` tag points at `db84e15`, whose CI was red for one test (a missing git identity on runners). The fix is on `main` only; the tag was not moved.
 - **Release routine** (also in `docs/contributing.md`): branch `build/vX.Y.Z`, small commits, all suites (`tests/run-all.sh`), mutation checks, a fresh-context skeptic on `git diff main..build/vX.Y.Z`, CHANGELOG, a checkpoint here, merge, annotated tag, ask before pushing, then watch CI and install from GitHub in an isolated config.
@@ -24,8 +24,13 @@ Read this first when resuming. Update it at every checkpoint.
 - All suites via `tests/run-all.sh` (counts as in 1.0.0: validate 57, docs 80, explore 83, lens 36, goal 60, showcase 131, scaffold 195); `claude plugin validate --strict` and `--profile directory` pass.
 - No skeptic review: the change is four documentation lines and a version number, and the diff above shows nothing else. Say so if you want one anyway.
 
+### Verified after the push (2026-11-10)
+- **CI on `5ef4c9f`** (run 42907604239): green on `ubuntu-latest` and `macos-latest`.
+- **Installing from GitHub:** version 1.0.1, Skills (9), Agents (5), Hooks (0).
+- **GitHub release `v1.0.1`** published and marked Latest (not a draft, not a prerelease); `v1.0.0` stays published and is no longer Latest.
+
 ### Not verified
-- CI and the GitHub install for 1.0.1 (after the push). Everything listed as not verified for 1.0.0 still is.
+- Everything listed as not verified for 1.0.0 still is (a real interactive `discover`, native Windows, `designer` on a rendered screenshot).
 
 ### Next
 - Same as 1.0.0: a real interactive `discover` on a real idea.
