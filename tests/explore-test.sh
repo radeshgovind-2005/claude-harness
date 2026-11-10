@@ -84,7 +84,7 @@ val 12; echo extra > "$D/x.txt"
 [ "$(exs keep "same" 12)" != 0 ]; check "keep refuses a value equal to the best" $?
 [ "$(exs keep "worse" 9)" != 0 ]; check "keep refuses a regression (higher is better)" $?
 [ "$(rowcount kept)" = 1 ]; check "a refused keep logs nothing" $?
-[ "$(exs keep v abc)" != 0 ]; check "keep refuses a non-numeric value" $?
+out=$(ex keep v abc); [ "$(exs keep v abc)" != 0 ] && grep -q 'as a number' <<<"$out"; check "keep refuses a non-numeric value, and says why" $?
 newproj; ex baseline >/dev/null
 [ "$(exs keep "nothing changed" 99)" != 0 ]; check "keep refuses when the tree equals HEAD" $?
 newproj higher none 'cat value.txt'; ex baseline >/dev/null; val 12; g switch -q main 2>/dev/null
