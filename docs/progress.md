@@ -20,6 +20,8 @@ Handoff notes so a new session can resume. Newest checkpoint first.
   - **new, prototype profile** (hardened hooks): 138/138 hook tests. A `Write` on main was allowed and `git push --force` was blocked.
   - **Stop hook:** a failing `VERIFY_CMD` blocked the first stop and sent the error back. Claude explained it without editing `harness.conf`, and the second stop passed (`stop_hook_active` works). The run took 29 s.
 - `claude plugin details`: Skills (3), Hooks (0). Template dotfiles and exec bits survive into the install cache.
+- **CI on ubuntu** (run on `9c958e4`): `validate.sh` 27/27 and `scaffold-test.sh` 136/136 passed.
+- **Installing v0.2.0 from GitHub:** gave version 0.2.0, 3 skills, Hooks (0). Scaffolding from the install cache passed the project hook tests, 138/138.
 
 ### Skeptic review
 The verdict was CHANGES REQUESTED, with 15 issues (3 high). All were fixed or documented in `415f04f`:
@@ -29,8 +31,6 @@ The verdict was CHANGES REQUESTED, with 15 issues (3 high). All were fixed or do
 ### Not verified
 - **A real interactive discover conversation with the user.** Recommended next, on a real idea.
 - **`--continue` or resume of a discover session.** The lock is not re-registered, so it isn't enforced there. This is documented in the skill.
-- **CI on ubuntu for the new tests.** It runs on push.
-- **Installing v0.2.0 from GitHub.** It isn't pushed yet.
 - **The assignment profile end to end in a live session.** It is covered by the scaffold tests only.
 - **Windows and CRLF checkouts of the hook scripts themselves.** The conf parsing is CRLF-safe.
 
