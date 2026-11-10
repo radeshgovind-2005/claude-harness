@@ -14,6 +14,7 @@ You coordinate. The reviewing is done by three fresh-context agents, one per ang
 ## 1. Target and audience
 
 - Target: the argument (a path, feature or flow). If it is empty, use the current changes (`git status`, `git diff`); if there are none, ask what to review. Do not review the whole repository by default.
+- Snapshot: run `git status --short -uall` and keep the output. (`-uall` lists every untracked file, so edits inside untracked folders show up too.)
 - Audience: read `docs/intent.md` if it exists and write a 3-line summary of who the work is for, what they care about, and what the chosen direction is. If it does not exist, say so; the reviewers will state their assumption.
 
 ## 2. Facts for the AX reviewer
@@ -46,6 +47,6 @@ Do not include your own opinion of the work, what you built, or why. A reviewer 
 
 ## Rules
 
-- Reviewers can run commands and, through `Bash`, could still write; they are told not to. After the reviewers finish, run `git status --short` and report any file that changed.
+- Reviewers can run commands and, through `Bash`, could still write; they are told not to. After the reviewers finish, run `git status --short -uall` again and compare it with the snapshot from step 1. Report any difference. It cannot show a change to a file that was already modified before the review, so say that when the tree was not clean at the start.
 - If `docs/intent.md` says a direction or priority, a finding that the work ignores it is high severity.
 - Scale to the target: one function does not need all three angles. If an angle is irrelevant (for example UX for an internal script with no users), say so and run only the others, with the count stated.

@@ -71,7 +71,10 @@ fi
 
 # --- Guardrail config: only the user changes it ---
 P='\.claude/(hooks/|settings\.json)'
-if grep -Eqi "$P" <<<"$cmd" && grep -Eqi "(>|(^|[;&|[:space:]])(sed[[:space:]]+-[a-z]*i|perl[[:space:]]+-[a-z]*i|rm|mv|cp|tee|truncate|chmod|ln|install|dd)[[:space:]])" <<<"$cmd"; then
+# A redirect to /dev/null or a file-descriptor copy (2>/dev/null, &>/dev/null, 2>&1) writes nothing,
+# so it must not make a read-only command look like a write.
+safe=$(sed -E 's/[0-9]*>&[0-9-]+//g; s/(&|[0-9]+)?>>?[[:space:]]*\/dev\/null//g' <<<"$cmd")
+if grep -Eqi "$P" <<<"$cmd" && grep -Eqi "(>|(^|[;&|[:space:]])(sed[[:space:]]+-[a-z]*i|perl[[:space:]]+-[a-z]*i|rm|mv|cp|tee|truncate|chmod|ln|install|dd)[[:space:]])" <<<"$safe"; then
   ask "This command may change .claude/hooks/ or .claude/settings.json (the guardrails). Only the user should approve that."
 fi
 

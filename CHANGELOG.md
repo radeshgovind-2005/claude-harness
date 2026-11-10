@@ -16,6 +16,8 @@ to detect updates.
 - `validate.sh`: the lens reviewer has no edit tools, `goal` may declare a frontmatter hook (state-gated), counts Skills (8), Agents (2), Hooks (0).
 - The `docs/experiments.md` template has `Direction` and `Target` lines that `explore.sh` reads.
 - CI runs the explore, lens and goal tests.
+- `guard-bash.sh` no longer asks for confirmation on read-only commands that name `.claude/hooks/` or `.claude/settings.json` and redirect to `/dev/null` or copy a descriptor (`cat .claude/hooks/verify.sh 2>/dev/null`, `ls .claude/hooks 2>&1`). Found by `lens` reviewing a scaffolded project. A redirect into a hook (`> .claude/hooks/y.sh`, `2>.claude/hooks/err`) and `rm`/`mv` with `2>/dev/null` still ask. The project's hook tests grow from 138 to 152.
+- `explore.sh baseline` removes the template's example row from the log table.
 
 ### Known limits
 - **`goal` is not the built-in `/goal`.** The built-in one lets a small model judge the conversation. This one runs your command. Use it when the goal can be a command.
