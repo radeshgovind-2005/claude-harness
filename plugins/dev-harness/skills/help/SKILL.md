@@ -3,6 +3,7 @@ name: help
 description: Show how to use dev-harness — every skill and agent, when to use it, and one example each.
 argument-hint: "[skill-name]"
 disable-model-invocation: true
+allowed-tools: Read(/${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json)
 ---
 
 Show the user how to use dev-harness. Plugin version: read `version` from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` and state it.
