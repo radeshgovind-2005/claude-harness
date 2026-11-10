@@ -2,6 +2,17 @@
 
 Handoff notes so a new session can resume. Newest checkpoint first.
 
+## Current state
+
+Read this first when resuming. Update it at every checkpoint.
+
+- **Version:** 1.0.0, merged into `main` and tagged `v1.0.0` locally on 2026-11-10. Whether it is pushed is in the line below the checklist at the end of this block; if it is not there, ask the user before pushing.
+- **Branches:** `main` is the release branch. `build/v0.1.0` to `build/v1.0.0` are the finished milestone branches. `fix/ci-git-identity` is an old local branch whose change is already on `main` (cd69265); deleting it needs the user's OK.
+- **Known quirk:** the `v0.4.0` tag points at `db84e15`, whose CI was red for one test (a missing git identity on runners). The fix is on `main` only; the tag was not moved.
+- **Release routine** (also in `docs/contributing.md`): branch `build/vX.Y.Z`, small commits, all suites (`tests/run-all.sh`), mutation checks, a fresh-context skeptic on `git diff main..build/vX.Y.Z`, CHANGELOG, a checkpoint here, merge, annotated tag, ask before pushing, then watch CI and install from GitHub in an isolated config.
+- **Open decisions for the user:** push `main` and `v1.0.0`; delete `fix/ci-git-identity`; whether to run `/dev-harness:discover` on a real idea (the most valuable next test).
+- **Not yet verified anywhere:** CI on macOS (first run is after the push), installing 1.0.0 from GitHub, the update path from 0.5.0.
+
 ## Checkpoint v1.0.0 — 2026-11-10
 
 ### Done
@@ -16,7 +27,7 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 ### Verified
 - `tests/run-all.sh`: validate 57, docs 80, explore 83, lens 36, goal 60, showcase 131, scaffold 195 (the project hook tests run inside every scaffold: 211 per scaffold, was 172). shellcheck clean at warning level on every script.
 - `claude plugin validate --strict` and `--profile directory` both pass with no warning.
-- Mutation checks, one at a time in copies: 33 mutants of `docs-test.sh` (broken link, wrong README version or count, dropped skill or agent in `reference.md`, `stability.md` or the README, stale "planned" text, a `CLAUDE.md` route that does not exist, a CR in a script, missing `.gitattributes`, a non-square or missing icon, an example without its header or index entry, an owner or author name the fork guide does not list, an unclosed or wrongly nested code fence, a missing checkpoint heading, a script without `--help`); 30 mutants of the hook changes (the `-n` rule, its quote handling and false positives, `symbolic-ref` and a tag named `main`, the `jq` guard and a failing `jq`, the `verify.sh` loop guard, each "Instead:" message); 3 of `run-all.sh` (a broken suite fails the run, a suite that prints no result fails, `--fast` says it skipped one). Survivors found and fixed: the stability check that matched a name anywhere in the file, the `jq` message check that matched the word "install" in "not installed".
+- Mutation checks, one at a time in copies: 36 mutants of `docs-test.sh` (one survivor was equivalent) (broken link, wrong README version or count, dropped skill or agent in `reference.md`, `stability.md` or the README, stale "planned" text, a `CLAUDE.md` route that does not exist, a CR in a script, missing `.gitattributes`, a non-square or missing icon, an example without its header or index entry, an owner or author name the fork guide does not list, an unclosed or wrongly nested code fence, a missing checkpoint heading, a script without `--help`); 30 mutants of the hook changes (the `-n` rule, its quote handling and false positives, `symbolic-ref` and a tag named `main`, the `jq` guard and a failing `jq`, the `verify.sh` loop guard, each "Instead:" message); 3 of `run-all.sh` (a broken suite fails the run, a suite that prints no result fails, `--fast` says it skipped one). Survivors found and fixed: the stability check that matched a name anywhere in the file, the `jq` message check that matched the word "install" in "not installed".
 - Live headless runs with `--plugin-dir` (the 12 examples are the captures):
   - **assignment profile end to end:** `new` wrote the files and the hooks (172 hook tests passed then), then in a fresh session Claude changed `add` to `a - b` as asked and tried to finish; `verify.sh` ran `make test`, blocked, and Claude did not edit the test to make it pass: it stopped and asked.
   - **discover in three turns** across `--continue` with prepared answers: reflect, three questions, three directions with one bold, decision, `docs/intent.md` with `status: decided` and unanswered questions kept as open questions.
