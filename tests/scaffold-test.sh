@@ -184,6 +184,8 @@ for prof in prototype product assignment; do
   d=$(newrepo); bash "$SC" "$d" files --profile "$prof" >/dev/null 2>&1
   grep -q 'docs/progress.md' "$d/CLAUDE.md" && grep -q 'docs/experiments.md' "$d/CLAUDE.md"; check "$prof: CLAUDE.md routes progress.md and experiments.md" $?
   grep -q 'dev-harness:skeptic' "$d/CLAUDE.md" && grep -q 'dev-harness:skeptic' "$d/docs/agents/INDEX.md"; check "$prof: CLAUDE.md and agents/INDEX.md name dev-harness:skeptic" $?
+  ra=0; for a in skeptic lens-reviewer architect designer tester; do grep -q "dev-harness:$a" "$d/docs/agents/INDEX.md" || ra=1; done
+  [ $ra = 0 ]; check "$prof: docs/agents/INDEX.md names all five plugin agents" $?
   stale=0; for f in CLAUDE.md docs/agents/INDEX.md docs/lessons.md docs/progress.md docs/experiments.md; do
     [ -f "$d/$f" ] || stale=1; ! grep -q 'from v0\.' "$d/$f" || stale=1; done
   [ $stale = 0 ]; check "$prof: rendered templates exist and have no stale 'from v0.x'" $?

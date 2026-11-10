@@ -4,7 +4,7 @@ A Claude Code plugin marketplace with one plugin: **dev-harness**.
 
 dev-harness sets up and runs software projects the way experienced Claude Code users do. Before anything gets built, it works out what you're making, who it's for, and what matters most. It then scaffolds memory files and guardrails that suit the kind of project: a prototype, a product, or an assignment. Changes get reviewed by a fresh-context skeptic, and every correction is kept as a lesson so the mistake doesn't come back.
 
-> **Status: v0.4.0.** `help`, `discover`, `new`, `add`, `lesson`, `explore`, `lens` and `goal` work, with the `dev-harness:skeptic` and `dev-harness:lens-reviewer` agents. The other skills arrive milestone by milestone; see [CHANGELOG.md](CHANGELOG.md) and the roadmap below.
+> **Status: v0.5.0.** `help`, `discover`, `new`, `add`, `lesson`, `explore`, `lens`, `goal` and `showcase` work, with the agents `skeptic`, `lens-reviewer`, `architect`, `designer` and `tester`. What is left is v1.0.0 polish; see [CHANGELOG.md](CHANGELOG.md) and the roadmap below.
 
 ## Use
 
@@ -52,6 +52,22 @@ Every profile blocks force push, `--no-verify`, reading `.env`, `rm -rf /`, `cur
 
 How `goal` differs from Claude Code's built-in `/goal`: the built-in one lets a small model judge from the conversation whether your condition is met, and a turn limit is only a request to that judge. Here the judge is your command's exit code and the budget is counted by the hook. There is **no token budget**: hooks get no token count (use `--max-budget-usd` for headless runs). The hook lives in the session where `goal` ran and is not re-registered on resume.
 
+## Show it off and ask the right reviewer: `showcase` and the role agents
+
+`/dev-harness:showcase [audience]` finds the most impressive part of the work and drafts a demo, a README section and talking points that match `docs/intent.md`. "Impressive" means it matters to whoever receives the work **and** it demonstrably works. It shortlists three candidates, picks one and says why the others lost, then **runs the demo steps** and labels every claim `VERIFIED` (a command ran), `READ` (`file:line`) or `UNVERIFIED`. Unverified claims stay out of the README text and are listed under `DO NOT CLAIM`. A script (`showcase-facts.sh`) supplies the facts: history, most-changed files, tests, measured gains from `docs/experiments.md`. It proposes only; the README is written after you say yes, and an existing section is never overwritten.
+
+Five reviewers, one question each, so you pick one instead of sending the same question to several:
+
+| Agent | Asks | Looks at | Its evidence |
+|---|---|---|---|
+| `skeptic` | Is this change wrong? | a diff | a failing scenario, the project's own checks |
+| `lens-reviewer` | What does this person hit? | a target, one angle (UX, DX, AX) | commands run as that person |
+| `architect` | Is the structure right, and what does each option cost? | modules and boundaries | counted imports and fan-in, 2-3 options, one recommendation |
+| `designer` | Is the interface well made? | a UI's source and screenshots | computed contrast, missing states and focus; `NOT A UI` if there is none |
+| `tester` | Would the tests catch a break? | the tests of some code | mutants made in a temporary copy, and which no test caught |
+
+Like the skeptic, none of them has edit tools, and none can be stopped from writing through `Bash`; check `git status` after a review. Call them as `dev-harness:architect` and so on.
+
 ## Install
 
 In Claude Code:
@@ -87,7 +103,7 @@ Skills and agents live in the plugin and work in every project. Strict hooks, li
 | 0.2.0 | `discover`, `new`, profiles, guardrail hooks copied into projects (done) |
 | 0.3.0 | `add`, `skeptic` agent, `lesson`, memory files (done) |
 | 0.4.0 | `explore`, `lens`, `goal` (done) |
-| 0.5.0 | `showcase`, `architect` / `designer` / `tester` agents |
+| 0.5.0 | `showcase`, `architect` / `designer` / `tester` agents (done) |
 | 1.0.0 | Full docs, examples, full test pass |
 
 The full design is in [BRIEF.md](BRIEF.md).

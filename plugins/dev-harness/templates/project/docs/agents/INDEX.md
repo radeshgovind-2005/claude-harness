@@ -20,6 +20,14 @@ Read this before you spawn subagents or start a workflow.
 | Name | File | Use for |
 |---|---|---|
 | `dev-harness:skeptic` | plugin agent (needs the dev-harness plugin installed) | Try to disprove a diff before it is reported as done. Give it only the goal and the diff. It has no edit tools and is told not to write, but its `Bash` can still write: check `git status` after a review |
+| `dev-harness:lens-reviewer` | plugin agent, started by `/dev-harness:lens` | Look at the work as the user (UX), the next developer (DX) or an AI agent (AX). Run it through `lens`, which gives each angle its checklist |
+| `dev-harness:architect` | plugin agent | Judge structure and design trade-offs before a larger change: boundaries, who depends on whom, 2-3 options with costs, one recommendation. Give it the question and the target |
+| `dev-harness:designer` | plugin agent | Judge a user interface: hierarchy, spacing, consistency, states, contrast, focus, responsiveness. Says `NOT A UI` when there is none. Give it the target and screenshots if you have them |
+| `dev-harness:tester` | plugin agent | Check the tests can fail: it breaks the logic in a temporary copy and lists the mutants no test caught, plus missing tests. Give it the code and the test command |
+
+All of these have no edit tools and are told not to write, but their `Bash` can still write: check `git status` after a review.
+
+**Which reviewer for what:** `skeptic` asks "is this change wrong?" (a diff). `lens-reviewer` asks "what does this person hit?" (one angle). `architect` asks "is the structure right?". `designer` asks "is the interface well made?". `tester` asks "would the tests catch a break?". Do not send one question to two of them; pick the one whose question it is.
 
 ## Rules for Multi-Agent Work
 

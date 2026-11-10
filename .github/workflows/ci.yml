@@ -28,3 +28,5 @@ jobs:
         run: bash tests/lens-test.sh
       - name: goal (state and Stop hook)
         run: bash tests/goal-test.sh
+      - name: showcase (facts script and role agents)
+        run: bash tests/showcase-test.sh

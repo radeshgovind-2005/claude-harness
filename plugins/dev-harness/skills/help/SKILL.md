@@ -27,7 +27,7 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 | `explore` | You want to make a number better and the best change is not obvious. One change at a time: a script measures it, keeps what improves, reverts what doesn't, and logs `docs/experiments.md`. Stops at the target or after 2 variants with no gain | `/dev-harness:explore cut p95 latency of /search` | available |
 | `lens` | Review the work from three angles in fresh context: user (UX), next developer (DX), AI agent (AX). One ranked list with evidence; changes nothing | `/dev-harness:lens the onboarding flow` | available |
 | `goal` | Keep working until a command exits 0, with a budget of rounds and minutes (no token budget). A Stop hook runs the check, not a model; a checkpoint goes to `docs/progress.md` each round. Not the built-in `/goal` | `/dev-harness:goal pytest tests/api -q passes` | available |
-| `showcase` | Find the most impressive part and turn it into a demo, README section, talking points | `/dev-harness:showcase` | planned v0.5.0 |
+| `showcase` | You are about to show, hand in or publish the work. Picks the most impressive part that matters to the receiver in `docs/intent.md`, runs the demo, and drafts a demo, README section and talking points. Every claim is labelled VERIFIED / READ / UNVERIFIED; unverified ones stay out. Writes the README only if you say yes | `/dev-harness:showcase` | available |
 
 ## Agents
 
