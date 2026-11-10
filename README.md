@@ -106,7 +106,7 @@ Skills and agents live in the plugin and work in every project. Strict hooks, li
 | 0.5.0 | `showcase`, `architect` / `designer` / `tester` agents (done) |
 | 1.0.0 | Full docs, examples, full test pass |
 
-The full design is in [BRIEF.md](BRIEF.md).
+The full design is in [docs/brief.md](docs/brief.md).
 
 ## Develop or fork
 
