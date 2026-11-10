@@ -5,21 +5,42 @@
 
 # Profile settings live in harness.conf next to this script (written by dev-harness).
 # Parsed, never sourced. Missing file or key = safe default.
-conf() { # key default
+conf() { # key default -> value (CR, surrounding spaces and quotes stripped)
   local f v
   f="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/harness.conf"
-  v=$(grep -E "^$1=" "$f" 2>/dev/null | tail -n 1 | cut -d= -f2-)
-  v="${v#\"}"; v="${v%\"}"
-  if [ -n "$v" ] || grep -Eq "^$1=" "$f" 2>/dev/null; then printf '%s' "$v"; else printf '%s' "$2"; fi
+  grep -Eq "^[[:space:]]*$1[[:space:]]*=" "$f" 2>/dev/null || { printf '%s' "$2"; return; }
+  v=$(tr -d '\r' < "$f" | grep -E "^[[:space:]]*$1[[:space:]]*=" | tail -n 1 | cut -d= -f2-)
+  v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
+  case "$v" in \"*\") v="${v#\"}"; v="${v%\"}" ;; esac
+  printf '%s' "$v"
 }
+# Main-branch protection is off only for an explicit 0. Anything else (typo, "true", empty) keeps it on.
+main_protected() { [ "$(conf BLOCK_MAIN 1)" != 0 ]; }
 
 input=$(cat)
 file=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$input")
 [ -z "$file" ] && exit 0
 
-root="${CLAUDE_PROJECT_DIR:-$PWD}"
-rel="${file#"$root"/}"
-base=$(basename "$file")
+# Normalize: resolve . and .., duplicate slashes and symlinks, then compare in
+# lower case (macOS file systems are case-insensitive by default).
+normpath() { # path -> absolute physical path (works for files that do not exist yet)
+  local p="$1" out="" part rest=""
+  case "$p" in /*) ;; *) p="$PWD/$p" ;; esac
+  local IFS=/
+  for part in $p; do
+    case "$part" in ""|.) ;; ..) out="${out%/*}" ;; *) out="$out/$part" ;; esac
+  done
+  p="${out:-/}"
+  while [ ! -d "$p" ] && [ "$p" != "/" ]; do rest="/${p##*/}$rest"; p="${p%/*}"; p="${p:-/}"; done
+  p=$(cd "$p" 2>/dev/null && pwd -P) || p="${out:-/}"
+  printf '%s%s' "${p%/}" "$rest"
+}
+lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+root=$(normpath "${CLAUDE_PROJECT_DIR:-$PWD}")
+file=$(normpath "$file")
+rel=$(lower "${file#"$root"/}")
+base=$(lower "$(basename "$file")")
 
 # --- 1. Allowed exceptions (checked first) ---
 case "$base" in
@@ -50,7 +71,7 @@ esac
 
 # --- 3. Protected branches (profile: BLOCK_MAIN=1) ---
 # Check the branch where the file lives (works inside git worktrees).
-[ "$(conf BLOCK_MAIN 1)" = 1 ] || exit 0
+main_protected || exit 0
 dir=$(dirname "$file")
 while [ ! -d "$dir" ] && [ "$dir" != "/" ]; do dir=$(dirname "$dir"); done
 if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then

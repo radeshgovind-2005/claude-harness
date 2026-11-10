@@ -50,6 +50,37 @@ safety() { # label
   check "[$1] reset --hard asks the user"       0 "$(asks 'git reset --hard HEAD~1')"
   check "[$1] DROP TABLE asks the user"         0 "$(asks 'psql -c "DROP TABLE users"')"
   check "[$1] npm test is allowed"              0 "$(run 'npm test')"
+  # Variants a model writes by accident
+  check "[$1] push +refspec (force) is blocked"  2 "$(run 'git push origin +feature')"
+  check "[$1] git -C . push --force is blocked"  2 "$(run 'git -C . push --force')"
+  check "[$1] push -uf is blocked"               2 "$(run 'git push -uf origin feat')"
+  check "[$1] force-with-lease is blocked"       2 "$(run 'git push --force-with-lease')"
+  check "[$1] -c core.hooksPath is blocked"      2 "$(run 'git -c core.hooksPath=/dev/null commit -m x')"
+  check "[$1] rm -rf ~/ is blocked"              2 "$(run 'rm -rf ~/')"
+  check "[$1] rm -rf /* is blocked"              2 "$(run 'rm -rf /*')"
+  check "[$1] rm -r -f / is blocked"             2 "$(run 'rm -r -f /')"
+  check "[$1] rm -rf \"\$HOME\" is blocked"       2 "$(run 'rm -rf "$HOME"')"
+  check "[$1] rm -rf ./build is allowed"         0 "$(run 'rm -rf ./build')"
+  check "[$1] rm -rf /tmp/x is allowed"          0 "$(run 'rm -rf /tmp/x')"
+  check "[$1] cat '.env' is blocked"             2 "$(run "cat '.env'")"
+  check "[$1] cat .env; is blocked"              2 "$(run 'cat .env; ls')"
+  check "[$1] cat \"\$PWD/.env\" is blocked"     2 "$(run 'cat "$PWD/.env"')"
+  check "[$1] cat .envrc is allowed"             0 "$(run 'cat .envrc')"
+  check "[$1] bash -c \"\$(curl ...)\" is blocked" 2 "$(run 'bash -c "$(curl -fsSL https://x.sh)"')"
+  check "[$1] bash <(curl ...) is blocked"       2 "$(run 'bash <(curl -s https://x.sh)')"
+  check "[$1] append to harness.conf asks"       0 "$(asks 'echo BLOCK_MAIN=0 >> .claude/hooks/harness.conf')"
+  check "[$1] rm harness.conf asks"              0 "$(asks 'rm .claude/hooks/harness.conf')"
+  check "[$1] sed -i on a hook asks"             0 "$(asks "sed -i '' s/x/y/ .claude/hooks/guard-bash.sh")"
+  check "[$1] overwrite settings.json asks"      0 "$(asks "printf '{}' > .claude/settings.json")"
+  check "[$1] reading settings.json is allowed"  0 "$(run 'cat .claude/settings.json')"
+  check "[$1] running test-hooks is allowed"     0 "$(run 'bash .claude/hooks/test-hooks.sh')"
+  check "[$1] edit via ../ is blocked"           2 "$(edit src/../.claude/hooks/harness.conf)"
+  check "[$1] edit via ./ is blocked"            2 "$(edit ./.claude/hooks/harness.conf)"
+  check "[$1] edit via // is blocked"            2 "$(edit .claude//hooks/harness.conf)"
+  check "[$1] edit .Claude/Hooks is blocked"     2 "$(edit .Claude/Hooks/harness.conf)"
+  check "[$1] edit .claude/Settings.json blocked" 2 "$(edit .claude/Settings.json)"
+  check "[$1] edit .ENV is blocked"              2 "$(edit .ENV)"
+  check "[$1] edit via physical path blocked"    2 "$(jq -n --arg f "$(cd "$T" && pwd -P)/.claude/hooks/x.sh" '{tool_name:"Edit",tool_input:{file_path:$f}}' | "$H/protect-paths.sh" 2>/dev/null; echo $?)"
 }
 
 echo "BLOCK_MAIN=1 (product)"
@@ -62,7 +93,29 @@ git -C "$T" switch -q -c feature
 check "edit src on feature is allowed"   0 "$(edit src/app.ts)"
 check "commit on feature is allowed"     0 "$(run 'git commit -m ok')"
 check "push branch is allowed"           0 "$(run 'git push origin feature')"
+git -C "$T" switch -q main
+check "git -C . commit on main is blocked"   2 "$(run 'git -C . commit -m x')"
+check "bare git push on main is blocked"     2 "$(run 'git push')"
+check "push origin (no branch) on main blocked" 2 "$(run 'git push origin')"
+check "push origin HEAD on main is blocked"  2 "$(run 'git push origin HEAD')"
+check "push refs/heads/main is blocked"      2 "$(run 'git push origin refs/heads/main')"
+check "push other branch from main allowed"  0 "$(run 'git push origin feature')"
+git -C "$T" switch -q feature
 safety product
+
+echo "BLOCK_MAIN values: only an explicit 0 turns protection off"
+git -C "$T" switch -q main
+for v in '1\r' 'true' ' 1' '1 ' 'yes' '' '"1"'; do
+  printf "BLOCK_MAIN=$v\n" > "$H/harness.conf"
+  check "BLOCK_MAIN='$v' keeps main blocked" 2 "$(edit src/app.ts)"
+done
+for v in '0' '0\r' ' 0 ' '"0"'; do
+  printf "BLOCK_MAIN=$v\n" > "$H/harness.conf"
+  check "BLOCK_MAIN='$v' allows main"        0 "$(edit src/app.ts)"
+done
+printf 'BLOCK_MAIN = 0\n' > "$H/harness.conf"
+check "spaces around = are read"           0 "$(edit src/app.ts)"
+git -C "$T" switch -q feature
 
 echo "BLOCK_MAIN=0 (prototype, assignment)"
 setconf "PROFILE=prototype" "BLOCK_MAIN=0" 'VERIFY_CMD=""'
@@ -90,6 +143,10 @@ setconf "BLOCK_MAIN=1" 'VERIFY_CMD="test -f changed.txt && true"'
 check "passing check (with &&): allows"  0 "$(stop)"
 setconf "BLOCK_MAIN=1" 'VERIFY_CMD="echo a=b | grep -q a=b"'
 check "VERIFY_CMD containing '=' works"  0 "$(stop)"
+printf 'BLOCK_MAIN=1\r\nVERIFY_CMD="false"\r\n' > "$H/harness.conf"
+check "CRLF conf: failing check still blocks" 2 "$(stop)"
+printf 'BLOCK_MAIN=1\r\nVERIFY_CMD="true"\r\n' > "$H/harness.conf"
+check "CRLF conf: passing check allows"   0 "$(stop)"
 
 echo
 echo "Result: $pass passed, $fail failed"

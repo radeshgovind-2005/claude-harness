@@ -6,7 +6,7 @@ argument-hint: "[idea, brief, assignment text, links or file paths]"
 allowed-tools: Read(/${CLAUDE_PLUGIN_ROOT}/skills/discover/intent-template.md) Edit(docs/intent.md)
 hooks:
   PreToolUse:
-    - matcher: "Edit|Write|NotebookEdit"
+    - matcher: "Edit|Write|MultiEdit|NotebookEdit"
       hooks:
         - type: command
           command: "\"${CLAUDE_PLUGIN_ROOT}/skills/discover/discover-lock.sh\""
@@ -15,7 +15,7 @@ hooks:
 
 Run discovery for this project. Input from the user: $ARGUMENTS
 
-Discovery is a conversation, not a questionnaire. The user often does not yet know what matters most; work it out together. **Do not write code, scaffold, or install anything.** A hook blocks edits to every file except `docs/intent.md` while `docs/intent.md` says `status: discovering`. The hook lives only in the session where this skill was invoked; in a resumed or new session, follow the rule without it until discovery is decided.
+Discovery is a conversation, not a questionnaire. The user often does not yet know what matters most; work it out together. **Do not write code, scaffold, or install anything.** A hook blocks edits to every file except `docs/intent.md` while `docs/intent.md` says `status: discovering`. The hook covers file-edit tools only (not shell commands) and lives only in the session where this skill was invoked; in a resumed or new session, or in the shell, follow the rule without it until discovery is decided.
 
 ## 0. Prepare
 

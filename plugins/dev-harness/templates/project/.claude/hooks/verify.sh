@@ -11,13 +11,17 @@
 
 # Profile settings live in harness.conf next to this script (written by dev-harness).
 # Parsed, never sourced. Missing file or key = safe default.
-conf() { # key default
+conf() { # key default -> value (CR, surrounding spaces and quotes stripped)
   local f v
   f="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/harness.conf"
-  v=$(grep -E "^$1=" "$f" 2>/dev/null | tail -n 1 | cut -d= -f2-)
-  v="${v#\"}"; v="${v%\"}"
-  if [ -n "$v" ] || grep -Eq "^$1=" "$f" 2>/dev/null; then printf '%s' "$v"; else printf '%s' "$2"; fi
+  grep -Eq "^[[:space:]]*$1[[:space:]]*=" "$f" 2>/dev/null || { printf '%s' "$2"; return; }
+  v=$(tr -d '\r' < "$f" | grep -E "^[[:space:]]*$1[[:space:]]*=" | tail -n 1 | cut -d= -f2-)
+  v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
+  case "$v" in \"*\") v="${v#\"}"; v="${v%\"}" ;; esac
+  printf '%s' "$v"
 }
+# Main-branch protection is off only for an explicit 0. Anything else (typo, "true", empty) keeps it on.
+main_protected() { [ "$(conf BLOCK_MAIN 1)" != 0 ]; }
 VERIFY_CMD=$(conf VERIFY_CMD "")
 
 input=$(cat)

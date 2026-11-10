@@ -22,9 +22,10 @@ die() { echo "FAIL    $*" >&2; exit 1; }
 DEST="${1:-}"; PHASE="${2:-}"; shift 2 2>/dev/null || true
 PROFILE=""; VERIFY=""; VERIFY_SET=0; DRY=0; MERGE=0
 while [ $# -gt 0 ]; do
+  case "$1" in --profile|--verify-cmd) [ $# -ge 2 ] || die "$1 needs a value" ;; esac
   case "$1" in
-    --profile) PROFILE="${2:-}"; shift 2 ;;
-    --verify-cmd) VERIFY="${2-}"; VERIFY_SET=1; shift 2 ;;
+    --profile) PROFILE="$2"; shift 2 ;;
+    --verify-cmd) VERIFY="$2"; VERIFY_SET=1; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     --merge-settings) MERGE=1; shift ;;
     *) die "unknown option: $1" ;;
@@ -37,7 +38,7 @@ case "$PHASE" in files|guardrails) ;; *) die "phase must be 'files' or 'guardrai
 case "$PROFILE" in prototype|product|assignment) ;; *) die "--profile must be prototype, product or assignment" ;; esac
 PROF="$PLUGIN/templates/profiles/$PROFILE"
 command -v jq >/dev/null || die "jq is required (brew install jq / apt install jq). The hooks need it too."
-case "$VERIFY" in *$'\n'*) die "--verify-cmd must be one line" ;; esac
+case "$VERIFY" in *$'\n'*|*$'\r'*) die "--verify-cmd must be one line" ;; esac
 
 fails=0
 TMPD=$(mktemp -d); trap 'rm -rf "$TMPD"' EXIT
@@ -45,14 +46,15 @@ say() { printf '  %-7s %s\n' "$1" "$2"; [ "$1" = FAIL ] && fails=$((fails+1)); r
 [ $DRY = 1 ] && echo "DRY RUN: nothing is written."
 echo "dev-harness $PHASE -> $DEST (profile: $PROFILE)"
 
-# put REL SOURCE_FILE: copy unless the destination exists.
+# put REL SOURCE_FILE: copy unless the destination exists (a dangling symlink counts as existing).
+ADDED=""
 put() {
   local rel="$1" src="$2"
-  if [ -e "$DEST/$rel" ]; then say skip "$rel (exists)"; return; fi
+  if [ -e "$DEST/$rel" ] || [ -L "$DEST/$rel" ]; then say skip "$rel (exists)"; return 1; fi
   if [ $DRY = 0 ]; then
     mkdir -p "$DEST/$(dirname "$rel")" && cp "$src" "$DEST/$rel" || { say FAIL "$rel (copy failed)"; return; }
   fi
-  say add "$rel"
+  say add "$rel"; ADDED="$ADDED|$rel|"
 }
 
 if [ "$PHASE" = files ]; then
@@ -69,18 +71,33 @@ if [ "$PHASE" = files ]; then
 
   for line in "CLAUDE.local.md" ".claude/settings.local.json"; do
     if grep -qxF "$line" "$DEST/.gitignore" 2>/dev/null; then say skip ".gitignore has $line"
-    else [ $DRY = 0 ] && echo "$line" >> "$DEST/.gitignore"; say update ".gitignore += $line"; fi
+    else
+      if [ $DRY = 0 ]; then
+        # Never glue onto a last line that has no newline.
+        [ -s "$DEST/.gitignore" ] && [ -n "$(tail -c 1 "$DEST/.gitignore")" ] && echo >> "$DEST/.gitignore"
+        echo "$line" >> "$DEST/.gitignore"
+      fi
+      say update ".gitignore += $line"
+    fi
   done
 fi
 
 if [ "$PHASE" = guardrails ]; then
-  for f in "$TPL"/.claude/hooks/*.sh; do put ".claude/hooks/$(basename "$f")" "$f"; done
-  [ $DRY = 0 ] && chmod +x "$DEST"/.claude/hooks/*.sh 2>/dev/null
+  for f in "$TPL"/.claude/hooks/*.sh; do
+    rel=".claude/hooks/$(basename "$f")"
+    if put "$rel" "$f"; then
+      [ $DRY = 0 ] && chmod +x "$DEST/$rel"   # only files we added
+    elif [ -f "$DEST/$rel" ] && grep -q 'harness.conf' "$f" && ! grep -q 'harness.conf' "$DEST/$rel"; then
+      # An older hook (e.g. from claude-harness.zip) that ignores the profile.
+      say FAIL "$rel exists but does not read harness.conf: the profile is NOT applied. Compare it with $f, then update it yourself or move it aside and rerun."
+    fi
+  done
 
   # harness.conf from the profile, with VERIFY_CMD overridden if given.
   conf="$TMPD/harness.conf"
   if [ $VERIFY_SET = 1 ]; then
-    awk -v v="$VERIFY" '/^VERIFY_CMD=/ { print "VERIFY_CMD=\"" v "\""; next } { print }' "$PROF/harness.conf" > "$conf"
+    # Written verbatim: no awk -v (it would process backslash escapes).
+    { grep -v '^VERIFY_CMD=' "$PROF/harness.conf"; printf 'VERIFY_CMD="%s"\n' "$VERIFY"; } > "$conf"
   else cp "$PROF/harness.conf" "$conf"; fi
   put .claude/hooks/harness.conf "$conf"
 
@@ -106,8 +123,10 @@ if [ "$PHASE" = guardrails ]; then
       | .hooks = reduce ($h.hooks | to_entries[]) as $e (($u.hooks // {});
           .[$e.key] = ((.[$e.key] // []) as $mine
             | $mine + [ $e.value[] | select(([.hooks[]?.command] - cmds($mine)) | length > 0) ]))
-    ' "$S" "$PROF/settings.json" > "$merged" || { say FAIL ".claude/settings.json merge failed"; }
-    if jq -e --slurpfile a "$S" '. == $a[0]' "$merged" >/dev/null; then
+    ' "$S" "$PROF/settings.json" > "$merged" 2>"$TMPD/merge.err"
+    if [ $? -ne 0 ] || ! jq -e 'type == "object"' "$merged" >/dev/null 2>&1; then
+      say FAIL ".claude/settings.json could not be merged (unexpected shape: $(head -c 200 "$TMPD/merge.err")). File left unchanged; merge it by hand from $PROF/settings.json"
+    elif jq -e --slurpfile a "$S" '. == $a[0]' "$merged" >/dev/null; then
       say skip ".claude/settings.json (already has every dev-harness rule and hook)"
     else
       echo "  --- proposed merge of .claude/settings.json (your rules kept, dev-harness rules added) ---"

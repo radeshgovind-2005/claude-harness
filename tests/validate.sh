@@ -53,7 +53,10 @@ while IFS=$'\t' read -r name src; do
   pj="$src/.claude-plugin/plugin.json"
   [ -f "$pj" ]; check "plugin.json exists" $?
   [ "$(jq -r '.name // empty' "$pj" 2>/dev/null)" = "$name" ]; check "plugin.json name matches entry" $?
-  [[ "$(jq -r '.version // empty' "$pj" 2>/dev/null)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; check "plugin.json version is semver" $?
+  ver=$(jq -r '.version // empty' "$pj" 2>/dev/null)
+  [[ "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; check "plugin.json version is semver" $?
+  top=$(grep -Eom1 '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md 2>/dev/null | cut -c4-)
+  [ "$top" = "$ver" ]; check "CHANGELOG top entry ($top) matches plugin.json version ($ver)" $?
 
   extra=$(find "$src/.claude-plugin" -mindepth 1 -not -name plugin.json -not -name 'icon.png')
   [ -z "$extra" ]; check ".claude-plugin/ holds only plugin.json${extra:+ (found: $extra)}" $?

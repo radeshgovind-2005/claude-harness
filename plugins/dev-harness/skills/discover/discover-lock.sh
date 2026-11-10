@@ -15,7 +15,8 @@ intent="$root/docs/intent.md"
 [ -f "$intent" ] || exit 0
 
 # status from the frontmatter only (between the first two '---' lines)
-status=$(awk 'NR==1 && $0!="---" {exit} NR>1 && /^---$/ {exit} /^status:/ {sub(/^status:[[:space:]]*/,""); print; exit}' "$intent")
+status=$(tr -d '\r' < "$intent" | awk 'NR==1 && $0!="---" {exit} NR>1 && /^---[[:space:]]*$/ {exit}
+  /^status[[:space:]]*:/ {sub(/^status[[:space:]]*:[[:space:]]*/,""); sub(/[[:space:]]+$/,""); gsub(/["'"'"']/,""); print tolower($0); exit}')
 [ "$status" = "discovering" ] || exit 0
 
 case "$file" in /*) abs="$file" ;; *) abs="$root/$file" ;; esac

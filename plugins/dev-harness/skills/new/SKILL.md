@@ -29,7 +29,7 @@ The script never overwrites; it prints `add`, `skip`, `merge`, `update`, `ok` or
 
 3. **Git.** Run `git rev-parse --is-inside-work-tree`. If this is not a repo, offer `git init -b main` (ask first). For **product** on `main` or `master`: offer `git switch -c chore/dev-harness-setup` before anything is written. Once the guardrails land, edits on `main` are blocked immediately in this session.
 
-4. **Verify command.** Look at `package.json` scripts, `pyproject.toml`, `Makefile`, `Cargo.toml`, `go.mod`. Propose a fast `VERIFY_CMD` (under 60 s): product = typecheck + lint, assignment = tests, prototype = empty. Ask the user to confirm or change it. If there is no code yet, propose empty and say it can be set later in `.claude/hooks/harness.conf` (only the user can edit that file).
+4. **Verify command.** Look at `package.json` scripts, `pyproject.toml`, `Makefile`, `Cargo.toml`, `go.mod`. Propose a fast `VERIFY_CMD` (under 60 s): product = typecheck + lint, assignment = tests, prototype = empty. Ask the user to confirm or change it. If there is no code yet, propose empty and say it can be set later in `.claude/hooks/harness.conf` (only the user edits that file; Claude's edits are blocked and shell changes ask first).
 
 5. **Files.** Run the `files` phase. Then fill the `<placeholders>` in `CLAUDE.md` from `docs/intent.md` and the repo: name and one-line purpose, stack, one project-specific critical rule, commands you can confirm exist (leave `<cmd>` for unknown ones and say so). If `CLAUDE.md` was skipped because it existed, show the user what the dev-harness version adds and ask before merging; keep their content and stay under 100 lines.
 

@@ -33,6 +33,9 @@ for prof in prototype product assignment; do
   [ "$(wc -l < "$d/CLAUDE.md")" -lt 100 ]; check "CLAUDE.md under 100 lines" $?
   grep -q "^PROFILE=$prof$" "$d/.claude/hooks/harness.conf"; check "harness.conf PROFILE=$prof" $?
   jq empty "$d/.claude/settings.json"; check "settings.json is valid JSON" $?
+  for h in protect-paths guard-bash verify; do
+    jq -e --arg h "$h" '[.hooks[]?[]?.hooks[]?.command] | map(test($h + "\\.sh")) | any' "$d/.claude/settings.json" >/dev/null; check "settings.json registers $h.sh" $?
+  done
   grep -qxF "CLAUDE.local.md" "$d/.gitignore"; check ".gitignore ignores CLAUDE.local.md" $?
   case $prof in
     product)
@@ -100,6 +103,40 @@ jq -e '.hooks.PreToolUse | length == 2' "$S" >/dev/null; check "merge adds both 
 before=$(cat "$S"); bash "$SC" "$d" guardrails --profile product --merge-settings >/dev/null 2>&1
 [ "$before" = "$(cat "$S")" ]; check "second merge changes nothing" $?
 echo '{bad' > "$S"; bash "$SC" "$d" guardrails --profile product --merge-settings >/dev/null 2>&1; [ $? -ne 0 ]; check "invalid settings.json fails loudly" $?
+
+echo "Review fixes (v0.2.0 skeptic)"
+# 1. a merge that fails must leave settings.json byte-identical
+for bad in '{"permissions":{"allow":"Bash(ls)"}}' '{"hooks":{"PreToolUse":{"x":1}}}' '[]'; do
+  d=$(newrepo); mkdir -p "$d/.claude"; printf '%s' "$bad" > "$d/.claude/settings.json"
+  bash "$SC" "$d" guardrails --profile product --merge-settings >/dev/null 2>&1; st=$?
+  [ $st -ne 0 ] && [ "$(cat "$d/.claude/settings.json")" = "$bad" ]; check "failed merge of $bad: FAIL and file unchanged" $?
+done
+# 2. verify cmd with backslashes and a literal \n is written verbatim and cannot inject lines
+d=$(newrepo)
+bash "$SC" "$d" guardrails --profile product --verify-cmd 'grep -rq "\.ts$" src && printf x\nBLOCK_MAIN=0' >/dev/null 2>&1
+grep -qxF 'VERIFY_CMD="grep -rq "\.ts$" src && printf x\nBLOCK_MAIN=0"' "$d/.claude/hooks/harness.conf"; check "backslashes kept verbatim" $?
+[ "$(grep -c '^BLOCK_MAIN=' "$d/.claude/hooks/harness.conf")" = 1 ] && grep -qx 'BLOCK_MAIN=1' "$d/.claude/hooks/harness.conf"; check "no injected BLOCK_MAIN line" $?
+[ "$(edit_on_main "$d")" = 2 ]; check "product still blocks main after odd verify cmd" $?
+bash "$SC" "$(newrepo)" guardrails --profile product --verify-cmd $'a\rb' >/dev/null 2>&1; [ $? -ne 0 ]; check "verify cmd with CR rejected" $?
+# 8. .gitignore without a trailing newline
+d=$(newrepo); printf 'node_modules' > "$d/.gitignore"
+bash "$SC" "$d" files --profile prototype >/dev/null 2>&1
+grep -qx 'node_modules' "$d/.gitignore" && grep -qx 'CLAUDE.local.md' "$d/.gitignore"; check ".gitignore last line kept intact" $?
+# 10. option without a value fails fast (not an endless loop)
+bash "$SC" "$(newrepo)" guardrails --profile product --verify-cmd >/dev/null 2>&1; [ $? -ne 0 ]; check "--verify-cmd without value fails" $?
+bash "$SC" "$(newrepo)" files --profile >/dev/null 2>&1; [ $? -ne 0 ]; check "--profile without value fails" $?
+# 12. a dangling symlink is not followed
+d=$(newrepo); ln -s "$W/outside-target.md" "$d/CLAUDE.md"
+bash "$SC" "$d" files --profile prototype >/dev/null 2>&1
+[ ! -e "$W/outside-target.md" ]; check "dangling symlink not followed" $?
+# 13. a skipped user hook keeps its mode
+d=$(newrepo); mkdir -p "$d/.claude/hooks"; printf '# mine, reads harness.conf\n' > "$d/.claude/hooks/format.sh"; chmod 644 "$d/.claude/hooks/format.sh"
+bash "$SC" "$d" guardrails --profile prototype >/dev/null 2>&1
+[ ! -x "$d/.claude/hooks/format.sh" ]; check "skipped user hook not chmod-ed" $?
+# 7. an older hook that ignores harness.conf is reported, not silently kept
+d=$(newrepo); mkdir -p "$d/.claude/hooks"; printf '#!/usr/bin/env bash\nexit 0\n' > "$d/.claude/hooks/protect-paths.sh"
+out=$(bash "$SC" "$d" guardrails --profile prototype 2>&1); st=$?
+[ $st -ne 0 ] && grep -q 'does not read harness.conf' <<<"$out"; check "old hook without harness.conf support: FAIL" $?
 
 echo "Bad input"
 bash "$SC" "$W/missing" files --profile product >/dev/null 2>&1; [ $? -ne 0 ]; check "missing dir fails" $?

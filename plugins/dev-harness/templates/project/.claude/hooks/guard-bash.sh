@@ -5,13 +5,17 @@
 
 # Profile settings live in harness.conf next to this script (written by dev-harness).
 # Parsed, never sourced. Missing file or key = safe default.
-conf() { # key default
+conf() { # key default -> value (CR, surrounding spaces and quotes stripped)
   local f v
   f="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/harness.conf"
-  v=$(grep -E "^$1=" "$f" 2>/dev/null | tail -n 1 | cut -d= -f2-)
-  v="${v#\"}"; v="${v%\"}"
-  if [ -n "$v" ] || grep -Eq "^$1=" "$f" 2>/dev/null; then printf '%s' "$v"; else printf '%s' "$2"; fi
+  grep -Eq "^[[:space:]]*$1[[:space:]]*=" "$f" 2>/dev/null || { printf '%s' "$2"; return; }
+  v=$(tr -d '\r' < "$f" | grep -E "^[[:space:]]*$1[[:space:]]*=" | tail -n 1 | cut -d= -f2-)
+  v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
+  case "$v" in \"*\") v="${v#\"}"; v="${v%\"}" ;; esac
+  printf '%s' "$v"
 }
+# Main-branch protection is off only for an explicit 0. Anything else (typo, "true", empty) keeps it on.
+main_protected() { [ "$(conf BLOCK_MAIN 1)" != 0 ]; }
 
 input=$(cat)
 cmd=$(jq -r '.tool_input.command // empty' <<<"$input")
@@ -28,26 +32,47 @@ ask() {
   exit 0
 }
 
-# --- Hard blocks ---
-grep -Eq -- '--no-verify'                                  <<<"$cmd" && block "Do not skip git hooks (--no-verify)."
-grep -Eq 'git[[:space:]]+push.*(--force|[[:space:]]-f([[:space:]]|$))' <<<"$cmd" && block "Force push is not allowed."
-grep -Eq 'rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*f?[a-zA-Z]*[[:space:]]+(/|~|\$HOME|\*)([[:space:]]|$)' <<<"$cmd" && block "Recursive delete of root, home, or * is not allowed."
-grep -Eq '(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh' <<<"$cmd" && block "Do not pipe downloads into a shell."
-grep -Eq '(^|[[:space:]/])\.env([[:space:]]|$|\.(local|dev|development|prod|production|staging|test))' <<<"$cmd" && block "Do not read or print .env files. Ask the user for the variable NAME you need."
-grep -Eq 'git[[:space:]]+config.*core\.hooksPath' <<<"$cmd" && block "Do not change the git hooks path."
+# These catch common mistakes, not deliberate bypass (enforce on the Git host too).
+# `git` may carry global options before the subcommand: git -C dir / -c k=v / --no-pager ...
+G='git([[:space:]]+(-[Cc][[:space:]]+[^[:space:]]+|--?[a-z][a-z-]*(=[^[:space:]]*)?))*[[:space:]]+'
+E='([[:space:]]|$|[;&|)"'"'"'])'          # end of a word
+cwd=$(jq -r '.cwd // empty' <<<"$input"); cwd="${cwd:-$PWD}"
+branch=$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null)
 
-# --- Profile: BLOCK_MAIN=1 keeps main/master for reviewed merges only ---
-if [ "$(conf BLOCK_MAIN 1)" = 1 ]; then
-  grep -Eq 'git[[:space:]]+push.*[[:space:]:](main|master)([[:space:]]|$)' <<<"$cmd" && block "Do not push to main/master. Push a branch and open a PR."
+# --- Hard blocks (every profile) ---
+grep -Eq -- '--no-verify' <<<"$cmd" && block "Do not skip git hooks (--no-verify)."
+grep -Eq "${G}push.*([[:space:]]--force|[[:space:]]-[a-zA-Z]*f[a-zA-Z]*$E|[[:space:]]\+[^[:space:]])" <<<"$cmd" && block "Force push is not allowed (this includes -f, --force-with-lease and +refspec)."
+grep -Eq '(^|[;&|[:space:]])rm[[:space:]]' <<<"$cmd" \
+  && grep -Eq '[[:space:]](-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)([[:space:]]|$)' <<<"$cmd" \
+  && grep -Eq "[[:space:]][\"']?(/|/\\*|\\*|~|~/|~/\\*|\\\$HOME|\\\$\\{HOME\\}|\\\$HOME/|\\\$HOME/\\*)[\"']?$E" <<<"$cmd" \
+  && block "Recursive delete of root, home, or * is not allowed."
+grep -Eq '(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh' <<<"$cmd" && block "Do not pipe downloads into a shell."
+grep -Eq '(ba|z)?sh[^;&|]*(\$\(|<\()[[:space:]]*(curl|wget)' <<<"$cmd" && block "Do not run downloaded scripts."
+grep -Eq "(^|[[:space:]/\"'=])\.env(\.(local|dev|development|prod|production|staging|test))?$E" <<<"$cmd" && block "Do not read or print .env files. Ask the user for the variable NAME you need."
+grep -Eqi 'core\.hookspath' <<<"$cmd" && block "Do not change or override the git hooks path."
+
+# --- Profile: main/master kept for reviewed merges only (BLOCK_MAIN, default on) ---
+if main_protected; then
+  if grep -Eq "${G}push" <<<"$cmd"; then
+    grep -Eq "[[:space:]:/](main|master)$E" <<<"$cmd" && block "Do not push to main/master. Push a branch and open a PR."
+    if [ "$branch" = main ] || [ "$branch" = master ]; then
+      # On main: a push with no explicit branch (or HEAD) pushes main.
+      # (No case/esac here: bash 3.2 misparses parentheses inside $() in a case arm.)
+      args=$(sed -E "s/.*${G}push//" <<<"$cmd" | tr ' ' '\n' | grep -v '^-' | grep -c .)
+      if [ "$args" -le 1 ] || grep -Eq "[[:space:]]HEAD$E" <<<"$cmd"; then
+        block "You are on '$branch': this push would update '$branch'. Push a branch and open a PR."
+      fi
+    fi
+  fi
+  if grep -Eq "${G}commit" <<<"$cmd"; then
+    case "$branch" in main|master) block "Do not commit on '$branch'. Create a branch first." ;; esac
+  fi
 fi
 
-# --- Commit only on a feature branch (profile: BLOCK_MAIN=1) ---
-if [ "$(conf BLOCK_MAIN 1)" = 1 ] && grep -Eq 'git[[:space:]]+commit' <<<"$cmd"; then
-  cwd=$(jq -r '.cwd // empty' <<<"$input")
-  branch=$(git -C "${cwd:-$PWD}" rev-parse --abbrev-ref HEAD 2>/dev/null)
-  case "$branch" in
-    main|master) block "Do not commit on '$branch'. Create a branch first." ;;
-  esac
+# --- Guardrail config: only the user changes it ---
+P='\.claude/(hooks/|settings\.json)'
+if grep -Eqi "$P" <<<"$cmd" && grep -Eqi "(>|(^|[;&|[:space:]])(sed[[:space:]]+-[a-z]*i|perl[[:space:]]+-[a-z]*i|rm|mv|cp|tee|truncate|chmod|ln|install|dd)[[:space:]])" <<<"$cmd"; then
+  ask "This command may change .claude/hooks/ or .claude/settings.json (the guardrails). Only the user should approve that."
 fi
 
 # --- Ask the user first ---

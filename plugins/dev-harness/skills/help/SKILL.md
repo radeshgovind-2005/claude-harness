@@ -53,7 +53,7 @@ Force push, `--no-verify`, reading `.env`, `rm -rf /`, `curl | sh` and editing h
 
 - Skills and agents live in the plugin and work in every project.
 - Strict hooks are copied **into** a project only when you choose a profile in `new`. The plugin itself ships no always-on hooks. `discover` adds one while discovery is open: it blocks code edits until `docs/intent.md` says `status: decided`.
-- Profile settings live in `.claude/hooks/harness.conf`. Only you edit it.
+- Profile settings live in `.claude/hooks/harness.conf`. Only you edit it: Claude's file edits there are blocked, and shell commands that change it ask you first.
 - Local hooks stop mistakes, not deliberate bypass. Use branch protection and required CI on your Git host too.
 
 Source and issues: https://github.com/radeshgovind-2005/claude-harness
