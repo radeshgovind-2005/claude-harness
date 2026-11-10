@@ -19,7 +19,7 @@ Read this before you spawn subagents or start a workflow.
 
 | Name | File | Use for |
 |---|---|---|
-| `dev-harness:skeptic` | plugin agent (from dev-harness v0.3.0) | Try to disprove a diff before it is reported as done |
+| `dev-harness:skeptic` | plugin agent (needs the dev-harness plugin installed) | Try to disprove a diff before it is reported as done. Give it only the goal and the diff. It reads and runs checks; it does not edit |
 
 ## Rules for Multi-Agent Work
 
