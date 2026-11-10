@@ -6,12 +6,29 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 
 Read this first when resuming. Update it at every checkpoint.
 
-- **Version:** 1.0.0, merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
+- **Version:** 1.0.1 (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
 - **Branches:** `main` is the release branch. `build/v0.1.0` to `build/v1.0.0` are the finished milestone branches. The old local branch `fix/ci-git-identity` was deleted on 2026-11-10 (its change was already on `main`, cd69265).
 - **Known quirk:** the `v0.4.0` tag points at `db84e15`, whose CI was red for one test (a missing git identity on runners). The fix is on `main` only; the tag was not moved.
 - **Release routine** (also in `docs/contributing.md`): branch `build/vX.Y.Z`, small commits, all suites (`tests/run-all.sh`), mutation checks, a fresh-context skeptic on `git diff main..build/vX.Y.Z`, CHANGELOG, a checkpoint here, merge, annotated tag, ask before pushing, then watch CI and install from GitHub in an isolated config.
 - **Open for the user:** run `/dev-harness:discover` on a real idea (the most valuable next test), then `/dev-harness:lesson` for what it missed.
 - **Still not verified anywhere:** a real interactive `discover`; native Windows; `designer` on a rendered screenshot; the `showcase` README `Edit` path with a real "yes".
+
+## Checkpoint v1.0.1 — 2026-11-10
+
+### Done
+- The CHANGELOG line that said `docs-test.sh` has 58 checks now says 80 (it was already corrected on `main` in `c2c0751`, after the `v1.0.0` tag, so the tag still carries the old line). Version 1.0.1, CHANGELOG `## 1.0.1`, README status.
+- A GitHub release for `v1.0.0` was published with notes that already say 80.
+
+### Verified
+- `git diff v1.0.0..build/v1.0.1 --stat` touches only `CHANGELOG.md`, `README.md`, `docs/progress.md` and `plugin.json`: no skill, agent, script, hook or template changed.
+- All suites via `tests/run-all.sh` (counts as in 1.0.0: validate 57, docs 80, explore 83, lens 36, goal 60, showcase 131, scaffold 195); `claude plugin validate --strict` and `--profile directory` pass.
+- No skeptic review: the change is four documentation lines and a version number, and the diff above shows nothing else. Say so if you want one anyway.
+
+### Not verified
+- CI and the GitHub install for 1.0.1 (after the push). Everything listed as not verified for 1.0.0 still is.
+
+### Next
+- Same as 1.0.0: a real interactive `discover` on a real idea.
 
 ## Checkpoint v1.0.0 — 2026-11-10
 
