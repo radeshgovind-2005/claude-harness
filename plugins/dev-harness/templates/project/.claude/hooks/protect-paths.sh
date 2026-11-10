@@ -3,6 +3,16 @@
 # Blocks edits to protected paths, and all edits on protected branches.
 # Exit 2 = block. The stderr message goes back to Claude.
 
+# Profile settings live in harness.conf next to this script (written by dev-harness).
+# Parsed, never sourced. Missing file or key = safe default.
+conf() { # key default
+  local f v
+  f="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/harness.conf"
+  v=$(grep -E "^$1=" "$f" 2>/dev/null | tail -n 1 | cut -d= -f2-)
+  v="${v#\"}"; v="${v%\"}"
+  if [ -n "$v" ] || grep -Eq "^$1=" "$f" 2>/dev/null; then printf '%s' "$v"; else printf '%s' "$2"; fi
+}
+
 input=$(cat)
 file=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' <<<"$input")
 [ -z "$file" ] && exit 0
@@ -38,8 +48,9 @@ case "$rel" in
     exit 2 ;;
 esac
 
-# --- 3. Protected branches ---
+# --- 3. Protected branches (profile: BLOCK_MAIN=1) ---
 # Check the branch where the file lives (works inside git worktrees).
+[ "$(conf BLOCK_MAIN 1)" = 1 ] || exit 0
 dir=$(dirname "$file")
 while [ ! -d "$dir" ] && [ "$dir" != "/" ]; do dir=$(dirname "$dir"); done
 if git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then

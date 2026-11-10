@@ -4,11 +4,21 @@
 # If the check fails, exit 2: Claude cannot stop and must fix the errors.
 # This enforces "never say done without verification".
 
-# >>> EDIT THIS: a fast command (< 60 s). Leave empty to disable. <<<
-VERIFY_CMD=""
-# Examples:
-# VERIFY_CMD="npm run typecheck && npm run lint"
-# VERIFY_CMD="ruff check . && mypy ."
+# The command comes from VERIFY_CMD in harness.conf (next to this script).
+# Empty or missing = off. Keep it fast (< 60 s). Examples:
+#   VERIFY_CMD="npm run typecheck && npm run lint"
+#   VERIFY_CMD="ruff check . && mypy ."
+
+# Profile settings live in harness.conf next to this script (written by dev-harness).
+# Parsed, never sourced. Missing file or key = safe default.
+conf() { # key default
+  local f v
+  f="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/harness.conf"
+  v=$(grep -E "^$1=" "$f" 2>/dev/null | tail -n 1 | cut -d= -f2-)
+  v="${v#\"}"; v="${v%\"}"
+  if [ -n "$v" ] || grep -Eq "^$1=" "$f" 2>/dev/null; then printf '%s' "$v"; else printf '%s' "$2"; fi
+}
+VERIFY_CMD=$(conf VERIFY_CMD "")
 
 input=$(cat)
 
