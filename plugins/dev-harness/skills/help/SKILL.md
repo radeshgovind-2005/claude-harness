@@ -12,18 +12,16 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 
 ## Start here
 
-Only `help` works in this version. Once they ship:
-
-- New project or new idea: `/dev-harness:new` (v0.2.0). It runs `discover` first, then scaffolds.
-- Existing project: `/dev-harness:discover` (v0.2.0), then `/dev-harness:add all` (v0.3.0).
+- New project or new idea: `/dev-harness:new`. It runs `discover` first, asks for a profile, then scaffolds.
+- Existing project: `/dev-harness:discover` to write `docs/intent.md`, then `/dev-harness:new` (it never overwrites your files). `/dev-harness:add <part>` arrives in v0.3.0.
 
 ## Skills
 
 | Skill | Use it when | Example | Status |
 |---|---|---|---|
 | `help` | You want this guide | `/dev-harness:help discover` | available |
-| `discover` | Before building anything: work out who it is for, what matters, where to push. Writes `docs/intent.md`. No code | `/dev-harness:discover here is the assignment text: …` | planned v0.2.0 |
-| `new` | Full setup of a project: discover, pick a profile (prototype / product / assignment), scaffold files. Never overwrites | `/dev-harness:new a CLI that tracks my reading list` | planned v0.2.0 |
+| `discover` | Before building anything: work out who it is for, what matters, where to push. Writes `docs/intent.md`. No code | `/dev-harness:discover here is the assignment text: …` | available |
+| `new` | Full setup of a project: discover, pick a profile (prototype / product / assignment), scaffold files. Never overwrites | `/dev-harness:new a CLI that tracks my reading list` | available |
 | `add <part>` | Add one part to an existing project: guardrails, reviewer, lessons, memory, workflows, rules, all | `/dev-harness:add guardrails` | planned v0.3.0 |
 | `lesson` | You corrected Claude; record it in `docs/lessons.md` so it does not repeat | `/dev-harness:lesson ran tests in the wrong folder` | planned v0.3.0 |
 | `explore` | You want to try variants against a metric: keep what improves, revert what doesn't. Logs `docs/experiments.md` | `/dev-harness:explore cut p95 latency of /search` | planned v0.4.0 |
@@ -40,11 +38,22 @@ Only `help` works in this version. Once they ship:
 | `designer` | UI, UX, visual quality | planned v0.5.0 |
 | `tester` | Missing tests; checks tests can actually fail | planned v0.5.0 |
 
-## How it works (from v0.2.0)
+## Profiles (chosen in `new`)
+
+| | prototype | product | assignment |
+|---|---|---|---|
+| Edits, commits, pushes on `main` | allowed | blocked | allowed |
+| Check when Claude stops (`VERIFY_CMD`) | off | typecheck + lint | tests |
+| `git push` asks first | no | yes | no |
+| Claude explains each step | no | no | yes |
+
+Force push, `--no-verify`, reading `.env`, `rm -rf /`, `curl | sh` and editing hooks or secrets are blocked in every profile.
+
+## How it works
 
 - Skills and agents live in the plugin and work in every project.
-- Strict hooks (block edits on `main`, run checks on stop) will be copied **into** a project only when you choose a profile in `new` or `add`. The plugin itself ships no hooks.
-- Safety blocks (force push, reading `.env`, `rm -rf /`) will be on in every profile.
+- Strict hooks are copied **into** a project only when you choose a profile in `new`. The plugin itself ships no always-on hooks. `discover` adds one while discovery is open: it blocks code edits until `docs/intent.md` says `status: decided`.
+- Profile settings live in `.claude/hooks/harness.conf`. Only you edit it.
 - Local hooks stop mistakes, not deliberate bypass. Use branch protection and required CI on your Git host too.
 
 Source and issues: https://github.com/radeshgovind-2005/claude-harness
