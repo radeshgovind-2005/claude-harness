@@ -26,12 +26,15 @@ A fresh-context reviewer got the goal and `git diff main..build/v0.5.0`. Its ver
 - **Documented, not fixed:** `git log` over the whole history is not capped (huge repositories can be slow); a file name with a newline or double quote is skipped; `git diff --output=<file>` is pre-approved by the pattern (as in `lens` and `explore`); the tester's cap of 6 mutants is only an instruction (a live run made 7 and said so); the agents still cannot be stopped from writing through `Bash`.
 - **Not checked by the reviewer:** a live run of the three agents (covered above), whether `${CLAUDE_PLUGIN_ROOT}` expands in allow-lists in every case (the same pattern as the other skills), performance on a huge repository.
 
+### Verified after the push (2026-11-10)
+- **CI on `8b7d137`** (run 42878993504, 4 m 0 s): all six steps passed on ubuntu: `validate.sh`, `scaffold-test.sh`, `explore-test.sh`, `lens-test.sh`, `goal-test.sh`, `showcase-test.sh`.
+- **Installing v0.5.0 from GitHub** (isolated config): Skills (9) add, discover, explore, goal, help, lens, lesson, new, showcase; Agents (5) lens-reviewer, skeptic, architect, designer, tester; Hooks (0). `showcase-facts.sh` kept its executable bit and ran from the install cache; scaffolding from the cache wrote an `INDEX.md` naming the three new agents.
+
 ### Not verified
 - **`showcase` with the user answering the README question.** Headless mode cannot, so the `Edit` path (and the "never overwrite" diff path) is tested by wording only.
 - **`designer` on a rendered page.** It has no browser; no screenshot was ever given to it in a live run.
 - **The architect, designer and tester through `lens`-style fan-out.** They were started one at a time.
 - **A real user judging whether the showcase picks are impressive.** It picked sensibly on a toy project.
-- **CI on ubuntu for v0.5.0** (to run after the push), and installing v0.5.0 from GitHub.
 - Carried over: a real interactive discover conversation; the assignment profile end to end in a live session; goal resume and the 8-block cap; Windows and CRLF checkouts of the hook scripts.
 
 ### Next
