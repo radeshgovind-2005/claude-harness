@@ -134,6 +134,8 @@ newproj lower 5; ex baseline >/dev/null; val 4; ex keep fast 4 >/dev/null
 out=$(ex status); grep -q '^STOP=yes$' <<<"$out" && grep -q 'target reached' <<<"$out"; check "lower is better: target reached when best <= target" $?
 
 echo "review fixes (v0.4.0 skeptic)"
+al=$(sed -n 's/^allowed-tools:[[:space:]]*//p' "$ROOT/plugins/dev-harness/skills/explore/SKILL.md")
+! grep -q 'Edit' <<<"$al" && grep -q 'explore.sh' <<<"$al"; check "the Metric edit is not pre-approved (Claude Code asks, showing the command)" $?
 # 1. a user file whose name merely starts with the log's name is not the log
 for junk in docs/experiments.md.bak docs/experiments.md.old; do
   D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt"; mkdir -p "$D/docs"; echo precious > "$D/$junk"
@@ -169,7 +171,8 @@ ex start t >/dev/null; [ "$(git -C "$D" branch --show-current)" = "explore/t" ];
 D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt"; g add -A; g commit -q -m init; g checkout -q --detach
 [ "$(exs start t)" != 0 ]; check "start refuses a detached HEAD" $?
 newproj; ex baseline >/dev/null; val 12; g checkout -q --detach
-[ "$(exs keep v 12)" != 0 ] && [ "$(exs revert v 12)" != 0 ]; check "keep and revert refuse a detached HEAD" $?
+o1=$(ex keep v 12); o2=$(ex revert v 12)
+grep -q 'detached HEAD' <<<"$o1" && grep -q 'detached HEAD' <<<"$o2"; check "keep and revert refuse a detached HEAD, and say why" $?
 newproj; ex baseline >/dev/null; val 12; g switch -q -c other
 [ "$(exs keep v 12)" != 0 ]; check "keep refuses outside an explore/ branch" $?
 # 5. numbers
@@ -177,6 +180,9 @@ newproj higher none 'echo ".75"'; [ "$(ex measure)" = "VALUE=.75" ]; check "a le
 newproj higher none 'echo "ratio: .5"'; [ "$(ex measure)" = "VALUE=.5" ]; check "ratio: .5 is read as .5" $?
 newproj higher none 'echo "p95=1,234 ms"'; out=$(ex measure); [ "$(exs measure)" != 0 ] && grep -q 'thousands separator' <<<"$out"; check "a thousands separator is refused, not misread as 234" $?
 newproj higher none 'echo "done in 12 s (run 3)"'; out=$(ex measure 2>&1); grep -q 'VALUE=3' <<<"$out" && grep -q 'NOTE .*more than one number' <<<"$out"; check "a line with several numbers: uses the last and says so" $?
+# the shared runner keeps only the tail of huge output
+( . "$ROOT/plugins/dev-harness/scripts/lib.sh"; run_limited 20 'head -c 200000 /dev/zero | tr "\\0" "y"'; [ "${#RUN_OUT}" -le 20000 ] && [ "${#RUN_OUT}" -gt 1000 ] ); check "run_limited keeps at most the last 20000 bytes of output" $?
+( . "$ROOT/plugins/dev-harness/scripts/lib.sh"; run_limited 20 'echo out; echo err >&2; exit 4'; [ "$RUN_RC" = 4 ] && [ "$RUN_TIMED_OUT" = 0 ] && grep -q err <<<"$RUN_OUT" ); check "run_limited reports exit code and merges stderr" $?
 # 8. no process is left sleeping
 newproj higher none 'echo 1'; EXPLORE_TIMEOUT=777 ex measure >/dev/null
 sleep 1; [ -z "$(pgrep -f 'sleep 777' || true)" ]; check "no sleeping helper process is left behind" $?

@@ -128,6 +128,8 @@ sed -n '/^---$/,/^---$/p' "$P/skills/goal/SKILL.md" | grep -q 'goal-stop.sh'; ch
 sed -n '/^---$/,/^---$/p' "$P/skills/goal/SKILL.md" | grep -q '^disable-model-invocation: true'; check "the skill is user-invoked only" $?
 sed -n '/^---$/,/^---$/p' "$P/skills/goal/SKILL.md" | grep -q 'Stop:'; check "the hook is a Stop hook" $?
 [ -x "$HOOK" ] && [ -x "$GS" ]; check "hook and goal.sh are executable" $?
+al=$(sed -n 's/^allowed-tools:[[:space:]]*//p' "$P/skills/goal/SKILL.md")
+! grep -Eq 'goal\.sh (\*|start)' <<<"$al" && grep -q 'goal.sh status' <<<"$al"; check "goal.sh start is not pre-approved (Claude Code asks, showing the check command)" $?
 
 echo
 echo "Result: $pass passed, $fail failed"
