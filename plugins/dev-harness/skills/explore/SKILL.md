@@ -53,6 +53,7 @@ For each variant:
 - Never edit the log table by hand, never use `git reset` or `git checkout` yourself to undo a variant: use `revert`.
 - A failed measurement (`FAIL` from the script) is not a result. Fix the cause or stop; do not log a guess.
 - If a command prints `FAIL`, say so in your report. Do not say the loop finished.
+- State facts about the branch, commits and working tree from `git log --oneline` and `git status --short`, run just before you report, not from memory. `keep` commits the variant; a clean tree after it is expected.
 
 ## Report
 

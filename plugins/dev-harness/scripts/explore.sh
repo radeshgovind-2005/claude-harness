@@ -166,6 +166,8 @@ case "$cmd" in
     has_baseline && die "a baseline is already recorded in $EXP"
     out=$(do_measure "$@") || exit 1
     value=$(sed -n 's/^VALUE=//p' <<<"$out")
+    # Drop the template's example row (| YYYY-MM-DD | baseline | `<value>` | ...), now that a real one is written.
+    tmp=$(mktemp); grep -v '^| YYYY-MM-DD |' "$EXP" > "$tmp"; cat "$tmp" > "$EXP"; rm -f "$tmp"
     append_row "baseline" "$value" "—" "baseline" "Starting point"
     echo "  add     baseline row: $value"
     ;;

@@ -72,6 +72,7 @@ echo "baseline / keep"
 newproj
 out=$(ex baseline); grep -q 'baseline row: 10' <<<"$out"; check "baseline records the measured value" $?
 [ "$(rowcount baseline)" = 1 ]; check "baseline row is in the log" $?
+! grep -q 'YYYY-MM-DD' "$D/docs/experiments.md"; check "baseline removes the template's example row" $?
 [ "$(exs baseline)" != 0 ]; check "a second baseline is refused" $?
 newproj; [ "$(exs keep v 12)" != 0 ]; check "keep before a baseline is refused" $?
 newproj; ex baseline >/dev/null; val 12
