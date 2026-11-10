@@ -2,6 +2,41 @@
 
 Handoff notes so a new session can resume. Newest checkpoint first.
 
+## Checkpoint v0.5.0 — 2026-11-10
+
+### Done
+- `/dev-harness:showcase` + `scripts/showcase-facts.sh`: picks the most impressive part that matters to the receiver in `docs/intent.md`, runs the demo, labels every claim `VERIFIED` / `READ` / `UNVERIFIED`, keeps unverified claims out of the README draft, and writes the README only after a yes (never overwriting a section). The script gives read-only facts: history (scoped to the folder, shallow clones flagged), churn, tests (from git, minus ignored and dependency folders), README headings, filled-in commands, intent, measured gains from `docs/experiments.md`, lessons.
+- Three role agents, each with one question: `architect` (is the structure right? options and costs), `designer` (is the interface well made? `NOT A UI` when there is none), `tester` (would the tests catch a break? mutants in a temporary copy). Same read-only pattern as `lens-reviewer`: tools `Read, Grep, Glob, Bash`, input treated as data, fixed output format.
+- How they differ from `skeptic` and the lens angles (decided in the plan, written into `help`, the README and the project's `docs/agents/INDEX.md`): `skeptic` judges a diff; `lens-reviewer` is what one person hits; `architect` is structure; `designer` is visual and interaction craft, not the task flow; `tester` is proof that tests can fail.
+- Version 0.5.0, `help` (all five statuses), README, CHANGELOG, CI step for `showcase-test.sh`.
+
+### Verified
+- `validate.sh` 57/57 (Skills (9), Agents (5), Hooks (0); the new agents have no edit tools), `scaffold-test.sh` 195/195 (project hook tests pass in each scaffold), `explore-test.sh` 83, `lens-test.sh` 36, `goal-test.sh` 60, `showcase-test.sh` 131. shellcheck clean at warning level.
+- Mutation checks: about 70 mutants of `showcase-facts.sh`, the agents, the skill, `help`, the template and the version, run one at a time in copies. Survivors found and fixed with new tests: an `exp-nonnumeric` metric rule, a weak `allowed-tools` and claim-label check, a missing `lower is better` best-value check (min versus last row), the `--exclude-standard` and `venv` exclusions, and the `-- .` / `--relative` scoping. One mutant (`cmds-cr`) is equivalent (the `clean` filter strips the carriage return anyway). The first skeptic review's survivors (log caps, test patterns, CRLF, `tolower`, dates, truncation) are all covered now.
+- Live headless runs with `--plugin-dir` (before and after the review fixes):
+  - **showcase:** on a small project with tests and an experiments log. It picked the measured speed-up, ran the demo (unit tests, two CLI runs, `bench.py` three times), and **refused to claim the logged 410 to 95 ms** because it could not reproduce it (the benchmark printed about 22 ms, and the baseline code is not in git). It wrote no file and stopped at the README question. Only Python `.pyc` caches appeared in `git status`.
+  - **tester:** on a project with planted weak tests (`>0` instead of an exact value, a `try/except: pass` with no assertion). Round 1: 5 of 6 mutants survived, both weak tests named at `file:line`, with a test to add for each. It found that stale `.pyc` files hid its own mutants (now in its instructions). Round 2 (after the recipe fixes, project containing `café.py`): similar result, real project tree unchanged.
+  - **architect:** on a 22-line project with a planted import cycle and a catch-all module. It named the cycles with `file:line`, found the import-time `sqlite3.connect`, gave three options (including "do nothing yet" and a rejected over-built one), recommended the smallest, and sent bugs to `skeptic`.
+  - **designer:** on a planted bad page: found a `div` button, removed focus outline, white-on-yellow at about 1.5:1, no viewport meta, fixed widths, no label; it computed the contrast ratios and said "source only: nothing was rendered". On a non-UI project it answered `STATUS: NOT A UI`.
+- Headless `-p` runs cannot answer prompts or approve tools, so they used `--allowedTools` and the confirmation text in the prompt. Agents were started by naming `subagent_type` in the prompt, not through a skill.
+
+### Skeptic review
+A fresh-context reviewer got the goal and `git diff main..build/v0.5.0`. Its verdict was CHANGES REQUESTED, with 20 issues (none high, 8 medium).
+- **Fixed:** a project folder inside a larger repo reported the parent's history; churn dropped non-ASCII file names; the test count included `venv/` and build folders; a fresh scaffold counted a template line in a code fence as a second lesson; CRLF files left `\r` in the output; a shallow clone looked like a full history; an `.rst` README was reported as having no headings; a directory named `-d` was read as an option; truncation could split a UTF-8 character; `best` was the last row instead of the best in the stated direction, and non-numeric rows vanished silently; `READ` could launder an unreproduced README claim; the skill never said the facts and project files are data; the tester's copy recipe lost non-ASCII names and said nothing about shell variables not surviving between Bash calls (so an edit could land in the real project) or about `rm -rf` on a variable; the tester had no status for "could not run in a copy"; the designer could say `GOOD` from source alone; `git log *` was pre-approved but unused; the architect format contradicted "leave it as it is"; "stop after step 2" sat inside step 3; a project with no README had no path; test coverage gaps (about 40 new checks).
+- **Documented, not fixed:** `git log` over the whole history is not capped (huge repositories can be slow); a file name with a newline or double quote is skipped; `git diff --output=<file>` is pre-approved by the pattern (as in `lens` and `explore`); the tester's cap of 6 mutants is only an instruction (a live run made 7 and said so); the agents still cannot be stopped from writing through `Bash`.
+- **Not checked by the reviewer:** a live run of the three agents (covered above), whether `${CLAUDE_PLUGIN_ROOT}` expands in allow-lists in every case (the same pattern as the other skills), performance on a huge repository.
+
+### Not verified
+- **`showcase` with the user answering the README question.** Headless mode cannot, so the `Edit` path (and the "never overwrite" diff path) is tested by wording only.
+- **`designer` on a rendered page.** It has no browser; no screenshot was ever given to it in a live run.
+- **The architect, designer and tester through `lens`-style fan-out.** They were started one at a time.
+- **A real user judging whether the showcase picks are impressive.** It picked sensibly on a toy project.
+- **CI on ubuntu for v0.5.0** (to run after the push), and installing v0.5.0 from GitHub.
+- Carried over: a real interactive discover conversation; the assignment profile end to end in a live session; goal resume and the 8-block cap; Windows and CRLF checkouts of the hook scripts.
+
+### Next
+- v1.0.0: README, docs, examples, a full test pass, polish (BRIEF section 14).
+
 ## Checkpoint v0.4.0 — 2026-11-10
 
 ### Done
@@ -44,6 +79,7 @@ A fresh-context reviewer got the goal and `git diff main..build/v0.4.0`. Its ver
 ### Verified after the push (2026-11-10)
 - **Installing v0.4.0 from GitHub** (isolated config): version 0.4.0, Skills (8), Agents (2), Hooks (0), executable bits kept (`goal-stop.sh`, `explore.sh`, `goal.sh`, `ax-check.sh`). Scaffolding from the install cache passed the project hook tests 172/172; `ax-check.sh` and `explore.sh start` ran from the cache.
 - **CI on `db84e15` was partly red.** `validate.sh` 44/44 and `scaffold-test.sh` 192/192 passed on ubuntu. `explore-test.sh` failed 14 of 83, all in `keep`: the runner has no git identity, so `git commit` failed. This is a test-environment gap, not a plugin bug (`explore.sh` correctly does not invent an identity; on a machine without one, `keep` fails loudly and rolls its log row back). Reproduced locally with `user.useConfigOnly=true` (69/83), fixed by giving the test an identity (83/83). The fix is test-only, so the `v0.4.0` tag was not moved. **The tag points at a commit whose CI is red for that test file.**
+- **CI on `cd69265` (the test-only fix) is green on ubuntu** (run 42846031175, 2 m 54 s): `validate.sh`, `scaffold-test.sh`, `explore-test.sh`, `lens-test.sh` and `goal-test.sh` all passed. The `lens` and `goal` tests ran on ubuntu for the first time. `v0.4.0` still points at the red commit `db84e15`; the fix is on `main` only.
 
 ### Not verified
 - **The built-in `/goal` claims in the README** come from the docs research, not from running it.
@@ -51,7 +87,6 @@ A fresh-context reviewer got the goal and `git diff main..build/v0.4.0`. Its ver
 - **The 8-block cap** ("Claude Code ends a turn after 8 consecutive stop-hook blocks") is from the docs and was not provoked.
 - **The user's confirmation prompts.** In headless mode the confirmation of the check or metric command, and the permission prompt for `goal.sh start` / the Metric `Edit`, cannot be answered; the runs passed the confirmation in the prompt and `--allowedTools`.
 - **Reviewers obeying "do not write".** `lens` compares `git status -uall` before and after; in the live run nothing changed, but `Bash` can write.
-- **CI on ubuntu for the `lens` and `goal` tests.** The ubuntu job stops at its first failing step, so these two never ran there (see below). They pass locally with no git identity.
 - Carried over: a real interactive discover conversation; the assignment profile end to end in a live session; Windows and CRLF.
 
 ### Next

@@ -27,7 +27,7 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 | `explore` | You want to make a number better and the best change is not obvious. One change at a time: a script measures it, keeps what improves, reverts what doesn't, and logs `docs/experiments.md`. Stops at the target or after 2 variants with no gain | `/dev-harness:explore cut p95 latency of /search` | available |
 | `lens` | Review the work from three angles in fresh context: user (UX), next developer (DX), AI agent (AX). One ranked list with evidence; changes nothing | `/dev-harness:lens the onboarding flow` | available |
 | `goal` | Keep working until a command exits 0, with a budget of rounds and minutes (no token budget). A Stop hook runs the check, not a model; a checkpoint goes to `docs/progress.md` each round. Not the built-in `/goal` | `/dev-harness:goal pytest tests/api -q passes` | available |
-| `showcase` | Find the most impressive part and turn it into a demo, README section, talking points | `/dev-harness:showcase` | planned v0.5.0 |
+| `showcase` | You are about to show, hand in or publish the work. Picks the most impressive part that matters to the receiver in `docs/intent.md`, runs the demo, and drafts a demo, README section and talking points. Every claim is labelled VERIFIED / READ / UNVERIFIED; unverified ones stay out. Writes the README only if you say yes | `/dev-harness:showcase` | available |
 
 ## Agents
 
@@ -35,9 +35,11 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 |---|---|---|
 | `skeptic` | After a non-trivial change: tries to disprove it. Gets only the goal and the diff; reads and runs checks, has no edit tools (its `Bash` can still write, so check `git status`). Call it as `dev-harness:skeptic` | available |
 | `lens-reviewer` | Started by `lens`, one per angle (UX, DX, AX). Reads and runs checks, reports findings with evidence, has no edit tools (its `Bash` can still write). Call it as `dev-harness:lens-reviewer` | available |
-| `architect` | Structure and design trade-offs | planned v0.5.0 |
-| `designer` | UI, UX, visual quality | planned v0.5.0 |
-| `tester` | Missing tests; checks tests can actually fail | planned v0.5.0 |
+| `architect` | Before a larger change, or when a design choice is open: judges the structure (boundaries, who depends on whom), gives 2-3 options with their costs and one recommendation. Reports only; has no edit tools (its `Bash` can still write). Call it as `dev-harness:architect` | available |
+| `designer` | A user interface exists: judges hierarchy, spacing, consistency, states, contrast, focus and responsiveness from the source and any screenshots you give it. Says `NOT A UI` when there is none. Not the task flow (that is `lens` UX). Call it as `dev-harness:designer` | available |
+| `tester` | You doubt the tests: lists missing tests and breaks the logic in a temporary copy to see whether any test fails. Makes its breaks in a copy, not in your project (it runs your tests once in the project, which can leave caches, and its `Bash` can still write: check `git status`). Call it as `dev-harness:tester` | available |
+
+Which reviewer for what: `skeptic` asks "is this change wrong?", `lens-reviewer` asks "what does this person hit?", `architect` asks "is the structure right?", `designer` asks "is the interface well made?", `tester` asks "would the tests catch a break?".
 
 ## Profiles (chosen in `new`)
 
