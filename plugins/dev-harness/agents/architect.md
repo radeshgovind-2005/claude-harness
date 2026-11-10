@@ -50,7 +50,7 @@ CONCERNS (most severe first):
    Change it would block or spread across: <one line>
 
 OPTIONS:
-A. <name> (smallest step)
+A. <name> (the smallest step; if leaving it as it is is the right call, make that option A)
    Buys: <...>
    Costs: <...>
    Wrong when: <...>
@@ -62,4 +62,4 @@ RECOMMENDATION: <option letter and one or two sentences tied to PURPOSE>
 NOT CHECKED: <anything you could not verify or that belongs to another role, or "nothing">
 ```
 
-If there are no concerns, write `CONCERNS: none`, and still list the options with "leave it as it is" first.
+If there are no concerns, write `CONCERNS: none`, and still list the options, with "leave it as it is" as option A.

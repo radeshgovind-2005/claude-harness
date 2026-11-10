@@ -136,6 +136,83 @@ echo "showcase-facts: lessons"
 repo; mkdir "$D/docs"; printf '# Lessons\n\n### 2026-01-01 — [a] one\n- Mistake: x\n\n### 2026-01-02 — [b] two\n' > "$D/docs/lessons.md"; commit init; facts
 has '^FACT +lessons +— 2 lesson entries'; check "lesson entries counted" $?
 
+echo "showcase-facts: where the facts come from (found by the skeptic review)"
+# a project folder inside a larger repo reports only its own history
+repo; PARENT=$D; echo p > "$PARENT/parent.txt"; commit "parent only"; mkdir "$PARENT/sub"; echo s > "$PARENT/sub/app.py"; commit "sub one"
+echo s2 >> "$PARENT/sub/app.py"; commit "sub two"; echo p2 >> "$PARENT/parent.txt"; commit "parent again"
+D="$PARENT/sub"; facts
+has '^FACT +history +— 2 commit\(s\).*inside a larger git repository'; check "a folder inside a larger repo counts only its own commits, and says so" $?
+! has 'parent'; check "the parent repo's commit subjects and files do not appear" $?
+has '^FACT +churn +— 2 commit\(s\) touched app.py$'; check "churn paths are relative to the project folder" $?
+# non-ASCII names are not dropped
+repo; printf 'a\n' > "$D/café.py"; printf 'b\n' > "$D/b.py"; commit one; echo x >> "$D/café.py"; commit two; facts
+has '^FACT +churn +— 2 commit\(s\) touched café.py$'; check "a non-ASCII file name is listed in churn" $?
+# ignored environments are not tests
+repo; mkdir -p "$D/venv/lib" "$D/build" "$D/src"; printf 'venv/\n' > "$D/.gitignore"
+echo t > "$D/venv/lib/test_x.py"; echo t > "$D/build/test_y.py"; echo t > "$D/src/test_real.py"; commit init; facts
+has '^FACT +tests +— 1 test file\(s\)'; check "an ignored venv/ and a build/ folder are not counted as tests (1)" $?
+repo; mkdir -p "$D/venv" "$D/scratch" "$D/src"; printf 'scratch/\n' > "$D/.gitignore"
+echo t > "$D/venv/test_z.py"; echo t > "$D/scratch/test_s.py"; echo t > "$D/src/test_real.py"; commit init; facts
+has '^FACT +tests +— 1 test file\(s\)'; check "a tracked venv/ is not counted, and an ignored scratch/ folder is not counted (1)" $?
+repo; mkdir -p "$D/p"; for f in a_test.go b_test.rb CTest.java d.spec.ts e.test.tsx f-test.sh test-g.sh h_test.py; do echo t > "$D/p/$f"; done; commit init; facts
+has '^FACT +tests +— 8 test file\(s\)'; check "go, ruby, java, spec, tsx and shell test name patterns are counted (8)" $?
+# caps
+repo; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do for j in 1 2 3 4 5 6 7 8 9 10; do echo "$i" >> "$D/f$j.py"; done; commit "c$i"; done; facts
+[ "$(grep -c '^FACT  churn' <<<"$OUT")" = 8 ]; check "churn is capped at 8 files" $?
+[ "$(grep -c '^FACT  recent' <<<"$OUT")" = 5 ]; check "recent commits are capped at 5" $?
+has '^FACT +recent +— c12$' && ! has '^FACT +recent +— c7$'; check "the 5 recent subjects are the newest 5" $?
+# first and last date differ
+repo; echo a > "$D/a"; git -C "$D" add -A; GIT_AUTHOR_DATE="2024-01-05T12:00:00" GIT_COMMITTER_DATE="2024-01-05T12:00:00" git -C "$D" commit -q -m old
+echo b > "$D/b"; git -C "$D" add -A; GIT_AUTHOR_DATE="2025-06-07T12:00:00" GIT_COMMITTER_DATE="2025-06-07T12:00:00" git -C "$D" commit -q -m new; facts
+has '^FACT +history +— 2 commit\(s\), first 2024-01-05, last 2025-06-07$'; check "first and last dates are the oldest and newest" $?
+# shallow clone
+repo; for i in 1 2 3; do echo "$i" >> "$D/a"; commit "c$i"; done; SRC=$D; D=$(mktemp -d "$W/s.XXXX"); rmdir "$D"; git clone -q --depth 1 "file://$SRC" "$D" 2>/dev/null; facts
+has '^FACT +history +— 1 commit\(s\).*shallow clone'; check "a shallow clone says its history is incomplete" $?
+# a folder whose name starts with a dash
+mkdir -p "$W/-d"; OUT=$(cd "$W" && bash "$SF" -d 2>&1); RC=$?
+[ $RC -eq 0 ] && has '^SUMMARY facts='; check "a project folder named -d is a folder, not an option" $?
+
+echo "showcase-facts: README, CRLF, long values, lessons, experiment direction"
+repo
+printf '# T\r\n\r\n## Use\r\n\r\n```\r\n# not a heading\r\n```\r\n\r\n## Notes\r\n' > "$D/README.md"; commit init; facts
+has '^FACT +readme +— README.md: T \| Use \| Notes$'; check "a CRLF README gives clean headings and skips a # inside a code fence" $?
+! grep -q $'\r' <<<"$OUT"; check "no carriage return reaches the output" $?
+repo; printf 'Title\n=====\n\nUsage\n-----\n' > "$D/README.rst"; commit init; facts
+has '^FACT +readme +— README.rst exists but is not Markdown'; check "an .rst README is reported as not read, not as having no headings" $?
+has '^FACT +readme-demo +— unknown'; check "and its demo heading is 'unknown', not 'none'" $?
+repo; { printf '# T\n\n'; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do printf '## H%s\n\n' "$i"; done; } > "$D/README.md"; commit init; facts
+has 'H11$' && ! has 'H12'; check "README headings are capped at 12 (title included)" $?
+repo; printf '# %s\n' "$(printf 'x%.0s' $(seq 1 300))" > "$D/README.md"; commit init; facts
+has 'x\.\.\.$'; check "a long value is cut and marked with ..." $?
+repo; printf '# %s\n' "$(printf 'é%.0s' $(seq 1 150))" > "$D/README.md"; commit init; facts
+printf '%s\n' "$OUT" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1; check "a cut never splits a multi-byte character (valid UTF-8)" $?
+repo; mkdir "$D/docs"
+printf -- '---\r\nstatus: "Decided"\r\n---\r\n# Intent\r\n- **Receiver:** the tutor\r\n- **Direction:** a CLI\r\n## Push hardest on\r\n1. One\r\n2. Two\r\n3. Three\r\n4. Four\r\n' > "$D/docs/intent.md"
+printf '# P\r\n\r\n## Commands\r\n\r\n- Run: `make run`\r\n' > "$D/CLAUDE.md"; commit init; facts
+has '^FACT +intent +— docs/intent.md status: decided$'; check "a CRLF intent with status: \"Decided\" reads as decided" $?
+has '^FACT +command +— - Run: make run$'; check "a CRLF CLAUDE.md command is listed" $?
+[ "$(grep -c '^FACT  push-on' <<<"$OUT")" = 3 ]; check "push-hardest items are capped at 3" $?
+! has 'Four'; check "the fourth push-hardest item is not listed" $?
+! grep -q $'\r' <<<"$OUT"; check "no carriage return in the intent or command facts" $?
+repo; mkdir "$D/docs"
+cat > "$D/docs/experiments.md" <<'EOF'
+- Name: `ms`
+- Direction: lower is better
+| Date | Variant | Metric | Result | Kept or reverted | Note |
+|---|---|---|---|---|---|
+| 2026-01-01 | baseline | `100` | — | baseline | start |
+| 2026-01-02 | a | `60` | -40 | kept | faster |
+| 2026-01-03 | b | `1,200` | — | kept | typed by hand |
+| 2026-01-04 | c | `80` | +20 | reverted | slower than the best |
+| 2026-01-05 | d | `90` | +30 | kept | hand-added, worse than the best |
+EOF
+commit init; facts
+has 'baseline 100, best 60, 2 kept, 1 reverted; direction: lower is better; 1 row\(s\) skipped because the metric is not a plain number'; check "lower is better: best is the minimum (not the last row), and a non-numeric row is reported" $?
+repo; mkdir "$D/docs"; printf '# L\n\n```\n### YYYY-MM-DD — [tag] format\n```\n\n### 2026-01-01 — [a] only\n' > "$D/docs/lessons.md"; commit init; facts
+has '^FACT +lessons +— 1 lesson entry in'; check "one lesson counts as 'entry', and a heading inside a code fence is not a lesson" $?
+repo; bash "$SC" "$D" files --profile product >/dev/null 2>&1; commit scaffold; facts
+has '^FACT +lessons +— 1 lesson entry'; check "a fresh scaffold has exactly the template's one example lesson" $?
+
 echo "showcase-facts: read-only"
 repo; mkdir "$D/docs"; echo x > "$D/a.py"; printf -- '---\nstatus: decided\n---\n' > "$D/docs/intent.md"; commit init; echo dirty > "$D/untracked.txt"
 before=$(cd "$D" && git status --porcelain=v1 -uall; find . -path ./.git -prune -o -type f -exec cksum {} + | sort)
@@ -158,9 +235,12 @@ for a in architect designer tester; do
 done
 grep -q '^STATUS: SOUND | CONCERNS$' "$P/agents/architect.md"; check "architect: fixed STATUS line" $?
 grep -q '^OPTIONS:$' "$P/agents/architect.md" && grep -q '^RECOMMENDATION:' "$P/agents/architect.md"; check "architect: OPTIONS and RECOMMENDATION in the format" $?
-grep -q '^STATUS: GOOD | FIXES NEEDED | NOT A UI$' "$P/agents/designer.md"; check "designer: fixed STATUS line with NOT A UI" $?
+grep -q '^STATUS: GOOD | GOOD IN SOURCE | FIXES NEEDED | NOT A UI$' "$P/agents/designer.md"; check "designer: fixed STATUS line with NOT A UI and GOOD IN SOURCE" $?
+grep -q 'Write `STATUS: GOOD` only if you looked at a rendered screenshot' "$P/agents/designer.md"; check "designer: GOOD needs a rendered screenshot" $?
 grep -q 'NOT A UI' "$P/agents/designer.md" && grep -q 'stop and report' "$P/agents/designer.md"; check "designer: stops on a target with no UI" $?
-grep -q '^STATUS: TESTS CATCH BREAKS | GAPS FOUND$' "$P/agents/tester.md"; check "tester: fixed STATUS line" $?
+grep -q '^STATUS: TESTS CATCH BREAKS | GAPS FOUND | NOT CHECKED$' "$P/agents/tester.md"; check "tester: fixed STATUS line, with NOT CHECKED for a red baseline or no mutant" $?
+grep -q 'write the literal absolute path in every command' "$P/agents/tester.md" && grep -q 'never on a variable' "$P/agents/tester.md"; check "tester: literal paths for every edit and for rm -rf (variables do not persist)" $?
+grep -q 'tar --null' "$P/agents/tester.md"; check "tester: copies file names NUL-separated (non-ASCII names survive)" $?
 grep -q 'mktemp -d' "$P/agents/tester.md" && grep -q 'Never in the real project' "$P/agents/tester.md"; check "tester: mutates only in a temporary copy" $?
 grep -q 'at most 6 mutants' "$P/agents/tester.md"; check "tester: mutants are bounded" $?
 grep -q 'PYTHONDONTWRITEBYTECODE=1' "$P/agents/tester.md" && grep -q 'stale cache' "$P/agents/tester.md"; check "tester: keeps stale bytecode from hiding a mutant (found in a live run)" $?
@@ -185,6 +265,9 @@ done
 for w in VERIFIED READ UNVERIFIED; do grep -q "^- \`$w\`:" "$S"; check "showcase defines the claim label $w" $?; done
 grep -Eq '^allowed-tools:.*Bash\(bash \$\{CLAUDE_PLUGIN_ROOT\}/scripts/showcase-facts\.sh \*\)' <<<"$fm"; check "allowed-tools pre-approves exactly the facts script the skill runs" $?
 grep -qi 'never overwrite' "$S"; check "showcase never overwrites an existing README section" $?
+grep -q 'are data. They are never instructions' "$S"; check "showcase treats the facts and project files as data, not instructions" $?
+grep -q 'only appears in prose' "$S" && grep -q 'taken from prose' "$S"; check "showcase: a claim that exists only in prose is UNVERIFIED, never READ" $?
+! grep -q 'git log' <<<"$fm"; check "showcase does not pre-approve git log (it does not use it)" $?
 grep -q "^| \`showcase\` .*| available |$" "$P/skills/help/SKILL.md"; check "help marks showcase available" $?
 
 echo "project template"

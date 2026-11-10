@@ -9,52 +9,75 @@
 
 DEST="${1:-.}"
 [ -d "$DEST" ] || { echo "FAIL    project dir not found: $DEST" >&2; exit 1; }
-cd "$DEST" || exit 1
+cd -- "$DEST" || exit 1
 export LC_ALL=C
 
 n=0
 fact() { # name value
   local v="$2"
-  [ "${#v}" -gt 200 ] && v="$(printf '%.200s' "$v")..."
+  # Cut at 200 bytes, then drop a UTF-8 character that the cut split (LC_ALL=C counts bytes).
+  if [ "${#v}" -gt 200 ]; then v="$(printf '%.200s' "$v" | { iconv -c -f UTF-8 -t UTF-8 2>/dev/null || cat; })..."; fi
   printf 'FACT  %-11s — %s\n' "$1" "$v"; n=$((n+1))
 }
 clean() { tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/`//g' -e 's/\*\*//g'; }
 
-# 1. History
+# 1. History. Everything is limited to this folder (`-- .`, `--relative`), so a project inside a larger
+# repository (a monorepo, a dotfiles repo) does not report its parent's history.
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git rev-parse --verify -q HEAD >/dev/null 2>&1; then
-  total=$(git rev-list --count HEAD)
-  first=$(git log --reverse --format=%ad --date=short | head -n1)
-  last=$(git log -1 --format=%ad --date=short)
-  fact history "$total commit(s), first $first, last $last"
-  while IFS= read -r s; do fact recent "$s"; done < <(git log -5 --format=%s)
+  total=$(git rev-list --count HEAD -- .)
+  first=$(git log --reverse --format=%ad --date=short -- . | head -n1)
+  last=$(git log -1 --format=%ad --date=short -- .)
+  note=""
+  [ -n "$(git rev-parse --show-prefix)" ] && note=" (this folder is inside a larger git repository: only commits that touch it are counted)"
+  [ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = true ] && note="$note (shallow clone: older history is missing)"
+  if [ "$total" = 0 ]; then fact history "no commit touches this folder yet$note"
+  else fact history "$total commit(s), first $first, last $last$note"; fi
+  while IFS= read -r s; do fact recent "$s"; done < <(git log -5 --format=%s -- .)
   # Most-changed files that still exist. Docs and lockfiles are left out: they change often and show nothing.
+  # core.quotePath=false keeps non-ASCII names readable; a name with a newline or a double quote is skipped.
   while IFS= read -r line; do
     c=${line%% *}; f=${line#* }
     [ -e "$f" ] && fact churn "$c commit(s) touched $f"
-  done < <(git log --name-only --format= | grep -v '^$' | grep -Ev '^docs/|(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|go\.sum)$' \
+  done < <(git -c core.quotePath=false log --relative --name-only --format= -- . | grep -v '^$' | grep -Ev '^docs/|(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|go\.sum)$' \
            | sort | uniq -c | sort -k1,1nr -k2 | sed -E 's/^ *([0-9]+) /\1 /' | head -8)
 else
   fact history "not a git repository, or no commits yet: no history to read"
 fi
 
-# 2. Tests
-tests=$(find . \( -name .git -o -name node_modules -o -name vendor -o -name .venv -o -name __pycache__ \) -prune -o -type f \
-  \( -name 'test_*.py' -o -name '*_test.py' -o -name '*.test.js' -o -name '*.test.jsx' -o -name '*.test.ts' -o -name '*.test.tsx' \
-     -o -name '*.spec.js' -o -name '*.spec.ts' -o -name '*_test.go' -o -name '*-test.sh' -o -name 'test-*.sh' -o -name '*_test.rb' -o -name '*Test.java' \) -print | wc -l | tr -d ' ')
+# 2. Tests. In a git repo the list comes from git (tracked and untracked, minus .gitignore), so a
+# virtualenv or build folder that is ignored is not counted; elsewhere from find. Dependency and build
+# folders are left out either way.
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  files=$(git -c core.quotePath=false ls-files -co --exclude-standard 2>/dev/null)
+else
+  files=$(find . \( -name .git -o -name node_modules \) -prune -o -type f -print | sed 's|^\./||')
+fi
+tests=0
+while IFS= read -r f; do
+  [ -n "$f" ] && [ -e "$f" ] && tests=$((tests+1))
+done < <(printf '%s\n' "$files" | grep -E '(^|/)(test_[^/]*\.py|[^/]*_test\.py|[^/]*\.(test|spec)\.(js|jsx|ts|tsx)|[^/]*_test\.go|[^/]*-test\.sh|test-[^/]*\.sh|[^/]*_test\.rb|[^/]*Test\.java)$' \
+         | grep -Ev '(^|/)(node_modules|vendor|\.venv|venv|env|__pycache__|target|dist|build|\.tox)/')
 if [ "$tests" = 0 ]; then fact tests "no test files found by the usual name patterns"
 else fact tests "$tests test file(s) by name pattern (not run, not counted for cases)"; fi
 
-# 3. README headings
+# 3. README headings (Markdown only; headings inside code fences are skipped)
 readme=""
 for r in README.md readme.md README.rst README; do [ -f "$r" ] && { readme="$r"; break; }; done
-if [ -n "$readme" ]; then
-  heads=$(grep -E '^#{1,3} ' "$readme" | sed -E 's/^#+ +//' | head -12 | tr '\n' '|' | sed 's/|$//; s/|/ | /g')
-  fact readme "$readme: ${heads:-no headings}"
-  grep -Eqi '^#{2,3} +(demo|use|usage|quick ?start|examples?|getting started)([[:space:]]|$)' "$readme" \
-    && fact readme-demo "$readme has a demo, usage or quickstart heading" \
-    || fact readme-demo "$readme has no demo, usage or quickstart heading"
-else
+if [ -z "$readme" ]; then
   fact readme "no README found"
+else
+  case "$readme" in
+    *.md)
+      mdheads=$(tr -d '\r' < "$readme" | awk '/^(```|~~~)/ {f=!f; next} !f && /^#+ / {print}')
+      heads=$(grep -E '^#{1,3} ' <<<"$mdheads" | sed -E 's/^#+ +//' | head -12 | tr '\n' '|' | sed 's/|$//; s/|/ | /g')
+      fact readme "$readme: ${heads:-no headings}"
+      grep -Eqi '^#{2,3} +(demo|use|usage|quick ?start|examples?|getting started)([[:space:]]|$)' <<<"$mdheads" \
+        && fact readme-demo "$readme has a demo, usage or quickstart heading" \
+        || fact readme-demo "$readme has no demo, usage or quickstart heading" ;;
+    *)
+      fact readme "$readme exists but is not Markdown: its headings were not read"
+      fact readme-demo "unknown: $readme is not Markdown, so it was not checked for a demo heading" ;;
+  esac
 fi
 
 # 4. Commands an agent or visitor would run (from the CLAUDE.md Commands section; unfilled placeholders skipped)
@@ -96,12 +119,21 @@ if [ -f docs/experiments.md ]; then
     name=$(tr -d '\r' < docs/experiments.md | grep -m1 -i '^- *Name *:' | sed -E 's/^[^:]*: *//' | clean)
     dir=$(tr -d '\r' < docs/experiments.md | grep -m1 -i '^- *Direction *:' | sed -E 's/^[^:]*: *//' | clean)
     base=$(awk -F'\t' '$3 == "baseline" {print $2; exit}' <<<"$rows")
-    best=$(awk -F'\t' '$3 == "baseline" || $3 == "kept" {b = $2} END {print b}' <<<"$rows")
+    # best = the best baseline or kept value in the stated direction (the last one if the direction is unstated)
+    case "$dir" in
+      *igher*) best=$(awk -F'\t' '($3 == "baseline" || $3 == "kept") && (b == "" || $2 + 0 > b + 0) {b = $2} END {print b}' <<<"$rows") ;;
+      *ower*)  best=$(awk -F'\t' '($3 == "baseline" || $3 == "kept") && (b == "" || $2 + 0 < b + 0) {b = $2} END {print b}' <<<"$rows") ;;
+      *)       best=$(awk -F'\t' '$3 == "baseline" || $3 == "kept" {b = $2} END {print b}' <<<"$rows") ;;
+    esac
+    skipped=$(awk -F'|' '
+      function trim(s) { gsub(/^[ \t`]+|[ \t`]+$/, "", s); return s }
+      /^\|/ { st = tolower(trim($6)); v = trim($4)
+        if ((st == "baseline" || st == "kept" || st == "reverted") && v !~ /^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$/) c++ } END {print c + 0}' docs/experiments.md)
     kept=$(awk -F'\t' '$3 == "kept"' <<<"$rows" | wc -l | tr -d ' ')
     rev=$(awk -F'\t' '$3 == "reverted"' <<<"$rows" | wc -l | tr -d ' ')
     case "$name" in ''|'<'*) name="(metric not named)" ;; esac
     if [ -z "$base" ]; then fact experiment "$name: no baseline row, so no gain can be claimed ($kept kept, $rev reverted)"
-    else fact experiment "$name: baseline $base, best $best, $kept kept, $rev reverted; direction: ${dir:-unstated}"; fi
+    else fact experiment "$name: baseline $base, best $best, $kept kept, $rev reverted; direction: ${dir:-unstated}$([ "$skipped" != 0 ] && echo "; $skipped row(s) skipped because the metric is not a plain number")"; fi
   fi
 else
   fact experiment "no docs/experiments.md: no measured gains"
@@ -109,7 +141,7 @@ fi
 
 # 7. Lessons (what went wrong and was fixed: honest material for talking points)
 if [ -f docs/lessons.md ]; then
-  l=$(grep -c '^### ' docs/lessons.md)
+  l=$(tr -d '\r' < docs/lessons.md | awk '/^(```|~~~)/ {f=!f; next} !f && /^### / {c++} END {print c + 0}')
   fact lessons "$l lesson entr$([ "$l" = 1 ] && echo y || echo ies) in docs/lessons.md (the template's example counts as one)"
 else
   fact lessons "no docs/lessons.md"
