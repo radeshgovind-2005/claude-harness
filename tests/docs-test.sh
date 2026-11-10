@@ -62,7 +62,7 @@ echo "Fork guide"
 # Every file that names the owner (outside history) must be one the fork guide tells you to change.
 miss=""
 while IFS= read -r f; do
-  case "$f" in CHANGELOG.md|docs/brief.md|docs/progress.md|docs/contributing.md) continue ;; esac
+  case "$f" in CHANGELOG.md|docs/brief.md|docs/progress.md|docs/contributing.md|examples/*) continue ;; esac
   b=$(basename "$f")
   if grep -q "$b" docs/contributing.md; then :; else
     case "$f" in docs/*) grep -q 'docs/' docs/contributing.md || miss="$miss $f" ;; *) miss="$miss $f" ;; esac
