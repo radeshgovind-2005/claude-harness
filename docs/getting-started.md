@@ -25,7 +25,7 @@ A profile is how strict the project's guardrails are. You pick it when you run `
 | `git push` asks first | no | yes | no |
 | Claude explains each step | no | no | yes |
 
-Every profile blocks force push, `--no-verify`, reading `.env`, `rm -rf /` and `curl | sh`, and protects the hooks and `harness.conf` from Claude's edits. You change a profile by editing `.claude/hooks/harness.conf` yourself.
+Every profile blocks force push, `--no-verify` (and `git commit -n`), reading `.env`, `rm -rf /` and `curl | sh`, and protects the hooks and `harness.conf` from Claude's edits. To change a profile later, edit `.claude/hooks/harness.conf` yourself for `BLOCK_MAIN` and `VERIFY_CMD`. Whether `git push` asks first lives in the `ask` list of `.claude/settings.json`, which you also edit yourself: Claude's edits to both are blocked, and `add` never overwrites an existing file.
 
 ## Walkthrough 1: a new idea (prototype)
 

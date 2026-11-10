@@ -6,7 +6,7 @@
 - How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
 - Project: a toy Python project with `make test`, one unit test and a decided intent for a tutor-graded calculator.
 
-Part 1 sets the project up. Part 2 is a new session in that project: Claude made the change it was asked to make, tried to finish, and the project's own Stop hook (`verify.sh` running `make test`) blocked it. Claude did not edit the test to make it pass; it stopped and asked.
+The same trust notice was trimmed from both parts. Part 1 sets the project up. Part 2 is a new session in that project: Claude made the change it was asked to make, tried to finish, and the project's own Stop hook (`verify.sh` running `make test`) blocked it. Claude did not edit the test to make it pass; it stopped and asked.
 
 Trimmed: one line about the folder trust dialog was removed from the output, and absolute paths were shortened (`<scratch>`, `~`). Nothing else was edited.
 

@@ -6,6 +6,9 @@
 # Exit 1 if any check is FAIL. WARN means "worth fixing", FAIL means "an agent will hit this".
 # It reads files only; it runs none of the project's commands.
 
+# -h / --help prints the comment block at the top of this file (the usage).
+case "${1:-}" in -h|--help) sed -n '2,/^[^#]/{/^#/s/^# \{0,1\}//p;}' "$0"; exit 0 ;; esac
+
 DEST="${1:-.}"
 [ -d "$DEST" ] || { echo "FAIL    project dir not found: $DEST" >&2; exit 1; }
 cd "$DEST" || exit 1

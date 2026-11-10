@@ -28,7 +28,8 @@ input=$(cat)
 
 # Prevent an infinite loop: if Claude is already continuing because of
 # this hook, let it stop. It must report the failure to the user.
-[ "$(jq -r '.stop_hook_active // false' <<<"$input")" = "true" ] && exit 0
+# (No jq needed: a stop hook that fails because jq is missing must not trap Claude in a loop.)
+grep -Eq '"stop_hook_active"[[:space:]]*:[[:space:]]*true' <<<"$input" && exit 0
 
 [ -z "$VERIFY_CMD" ] && exit 0
 

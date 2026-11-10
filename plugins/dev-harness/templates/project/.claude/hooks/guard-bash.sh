@@ -17,6 +17,13 @@ conf() { # key default -> value (CR, surrounding spaces and quotes stripped)
 # Main-branch protection is off only for an explicit 0. Anything else (typo, "true", empty) keeps it on.
 main_protected() { [ "$(conf BLOCK_MAIN 1)" != 0 ]; }
 
+# jq reads the tool input. Without it this guard cannot see what Claude is about to do, so it fails closed
+# (blocks) and says how to fix that. It never lets a command through unchecked.
+command -v jq >/dev/null 2>&1 || {
+  echo "BLOCKED: the dev-harness guard needs jq to read the tool input, and jq is not installed. Install it (brew install jq, or apt install jq) and retry. Until then nothing can be checked, so this guard blocks." >&2
+  exit 2
+}
+
 input=$(cat)
 cmd=$(jq -r '.tool_input.command // empty' <<<"$input")
 [ -z "$cmd" ] && exit 0
@@ -37,19 +44,22 @@ ask() {
 G='git([[:space:]]+(-[Cc][[:space:]]+[^[:space:]]+|--?[a-z][a-z-]*(=[^[:space:]]*)?))*[[:space:]]+'
 E='([[:space:]]|$|[;&|)"'"'"'])'          # end of a word
 cwd=$(jq -r '.cwd // empty' <<<"$input"); cwd="${cwd:-$PWD}"
-branch=$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null)
+# symbolic-ref also names a branch that has no commit yet (rev-parse --abbrev-ref fails there).
+branch=$(git -C "$cwd" symbolic-ref --short -q HEAD 2>/dev/null)
 
 # --- Hard blocks (every profile) ---
-grep -Eq -- '--no-verify' <<<"$cmd" && block "Do not skip git hooks (--no-verify)."
-grep -Eq "${G}push.*([[:space:]]--force|[[:space:]]-[a-zA-Z]*f[a-zA-Z]*$E|[[:space:]]\+[^[:space:]])" <<<"$cmd" && block "Force push is not allowed (this includes -f, --force-with-lease and +refspec)."
+grep -Eq -- '--no-verify' <<<"$cmd" && block "Do not skip git hooks (--no-verify). Instead: fix what the hook reports, or ask the user to commit themselves."
+# -n is the short form of --no-verify on git commit (also inside a group such as -nm or -anm).
+grep -Eq "${G}commit([[:space:]]+[^|;&]*)?[[:space:]]-[a-zA-Z]*n[a-zA-Z]*$E" <<<"$cmd" && block "git commit -n skips the git hooks, like --no-verify. Instead: fix what the hook reports, or ask the user to commit themselves. (If -n is only part of your message text, reword it.)"
+grep -Eq "${G}push.*([[:space:]]--force|[[:space:]]-[a-zA-Z]*f[a-zA-Z]*$E|[[:space:]]\+[^[:space:]])" <<<"$cmd" && block "Force push is not allowed (this includes -f, --force-with-lease and +refspec). Instead: push a new commit, or ask the user to force push themselves."
 grep -Eq '(^|[;&|[:space:]])rm[[:space:]]' <<<"$cmd" \
   && grep -Eq '[[:space:]](-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)([[:space:]]|$)' <<<"$cmd" \
   && grep -Eq "[[:space:]][\"']?(/|/\\*|\\*|~|~/|~/\\*|\\\$HOME|\\\$\\{HOME\\}|\\\$HOME/|\\\$HOME/\\*)[\"']?$E" <<<"$cmd" \
-  && block "Recursive delete of root, home, or * is not allowed."
-grep -Eq '(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh' <<<"$cmd" && block "Do not pipe downloads into a shell."
-grep -Eq '(ba|z)?sh[^;&|]*(\$\(|<\()[[:space:]]*(curl|wget)' <<<"$cmd" && block "Do not run downloaded scripts."
+  && block "Recursive delete of root, home, or * is not allowed. Instead: delete the specific folder by name (for example rm -rf build)."
+grep -Eq '(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z)?sh' <<<"$cmd" && block "Do not pipe downloads into a shell. Instead: download the script to a file, read it, and ask the user before running it."
+grep -Eq '(ba|z)?sh[^;&|]*(\$\(|<\()[[:space:]]*(curl|wget)' <<<"$cmd" && block "Do not run downloaded scripts. Instead: download the script to a file, read it, and ask the user before running it."
 grep -Eq "(^|[[:space:]/\"'=])\.env(\.(local|dev|development|prod|production|staging|test))?$E" <<<"$cmd" && block "Do not read or print .env files. Ask the user for the variable NAME you need."
-grep -Eqi 'core\.hookspath' <<<"$cmd" && block "Do not change or override the git hooks path."
+grep -Eqi 'core\.hookspath' <<<"$cmd" && block "Do not change or override the git hooks path. Instead: ask the user to change it."
 
 # --- Profile: main/master kept for reviewed merges only (BLOCK_MAIN, default on) ---
 if main_protected; then

@@ -6,7 +6,7 @@
 
 ## Critical Rules
 
-- IMPORTANT: Never commit secrets. Never push, create a release or delete files without asking the user.
+- IMPORTANT: Never commit secrets. Never push, create a release or delete files without asking the user. (These two rules are text only: this repository has no guardrail hooks, and CI checks manifests, docs and scripts, not secrets or pushes.)
 - YOU MUST run the suites below before you say a change is done, and say which you ran.
 - The plugin ships NO always-on hooks. Strict hooks live in `plugins/dev-harness/templates/` and are copied into projects that opt in. Only `discover` and `goal` may declare a skill-frontmatter hook, and each must be state-gated.
 - Agents list `tools:` explicitly and never include an edit tool (`Bash` can still write; say so honestly).
@@ -16,6 +16,8 @@
 - Validate manifests, layout, help vs reality: `bash tests/validate.sh`
 - Scaffold and project hook tests (about 4 min, run in the background): `/bin/bash tests/scaffold-test.sh`
 - One suite: `/bin/bash tests/explore-test.sh` (also `lens-test.sh`, `goal-test.sh`, `showcase-test.sh`)
+- Docs, examples, links, versions, line endings, icon (run after any change to README, `docs/` or `examples/`): `/bin/bash tests/docs-test.sh`
+- Everything, one summary (`--fast` skips the 4-minute scaffold suite and says so): `/bin/bash tests/run-all.sh`
 - Shell lint: `shellcheck -S warning <script>`
 - Try the plugin from source: `claude --plugin-dir ./plugins/dev-harness`
 
@@ -32,7 +34,7 @@
 - macOS bash 3.2: no `;;&`, no `timeout`, no associative arrays; a `case` arm containing `$( ... )` with `)` is misparsed. Test scripts with `/bin/bash`.
 - `sort` is locale-dependent: use `LC_ALL=C` in tests that compare file lists.
 - zsh (the tool shell) does not word-split unquoted variables; a `d=$(fn)` helper runs in a subshell, so a `cd` inside it does not persist.
-- Never `rm -rf "$VAR"` in tool calls (blocked). Use fresh `mktemp -d` dirs.
+- Never `rm -rf "$VAR"` in tool calls (the author's own Claude Code setup blocks it; this repository does not). Use fresh `mktemp -d` dirs.
 - CI runners have no git identity: a test that commits through the code under test must export `GIT_AUTHOR_*` and `GIT_COMMITTER_*`.
 - `allowed-tools` Read rules for plugin files need `Read(/${CLAUDE_PLUGIN_ROOT}/...)` (extra slash). Never pre-approve a command that installs something a hook or script runs later.
 - Skill-frontmatter hooks stay registered for the rest of the session and are not re-registered after `--continue`. `CLAUDE_PLUGIN_DATA` is not set in hook processes under `--plugin-dir`.

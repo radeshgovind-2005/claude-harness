@@ -16,7 +16,7 @@ A rule that must never break is a hook, a test or CI, not a line in `CLAUDE.md`.
 
 | Rule | Enforced by | Where |
 |---|---|---|
-| No force push, `--no-verify`, `rm -rf /`, `curl \| sh`, reading `.env`, changing `core.hooksPath` | `guard-bash.sh` (exit 2) and `deny` rules | in a project that opted in |
+| No force push, `--no-verify` (and `git commit -n`), `rm -rf /`, `curl \| sh`, reading `.env`, changing `core.hooksPath` | `guard-bash.sh` (exit 2) and `deny` rules | in a project that opted in |
 | Risky commands ask first: `reset --hard`, `git clean -f`, `DROP` / `TRUNCATE`, shell writes to `.claude/hooks` or `harness.conf` | `guard-bash.sh` (ask) | same |
 | No edits to `.env*`, keys, lockfiles, `.claude/hooks/`, `.claude/settings.json`; none on `main` or `master` when `BLOCK_MAIN=1` | `protect-paths.sh` (exit 2) | same |
 | The project's formatter runs after an edit; it never blocks | `format.sh` | same |
@@ -40,7 +40,7 @@ A profile is a `harness.conf` plus a matching `settings.json`, chosen once.
 | `BLOCK_MAIN` | `1` blocks edits, commits and pushes on `main` / `master`. Only an explicit `0` lifts it; a typo or an empty value keeps it on |
 | `VERIFY_CMD` | runs when Claude stops; empty means off; keep it under 60 seconds |
 
-The hooks parse this file, they never source it. Claude's edits to it are blocked, and shell commands that look like they change it ask you first.
+The hooks parse this file, they never source it. Whether `git push` asks first is not in this file: it is the `ask` list in `.claude/settings.json`, so changing profiles after setup means editing both files. Claude's edits to it are blocked, and shell commands that look like they change it ask you first.
 
 ## Why the strict hooks are not in the plugin
 
@@ -54,18 +54,18 @@ A plugin stays on in every project where it is enabled. A rule like "block edits
 
 - **macOS and Linux:** tested. The scripts run on bash 3.2 (the macOS default); CI runs the suites on Ubuntu and macOS.
 - **Windows:** not tested. `.gitattributes` keeps LF line endings so a checkout cannot break the shebangs, but the hooks need `bash` and `jq`; use Git Bash or WSL.
-- **Needs:** `bash`, `git`, `jq`. `explore` and `goal` also use `awk` and `mktemp`.
+- **Needs:** `bash`, `git`, `jq`. `explore` and `goal` also use `awk` and `mktemp`. If `jq` is missing, the guard hooks block every command and say how to install it (they fail closed); `format.sh` just skips formatting.
 
 ## Known limits
 
 - **The discover lock covers file-edit tools only**, not shell commands, and lives only in the session where `discover` ran. After `--continue` or in a new session it is not registered again.
 - **The `goal` hook is not registered again after `--continue`** (observed: the round counter did not move). `goal.sh status` may show a stale goal; `goal.sh stop` clears it. The hook stays registered after the goal ends but does nothing. Two simultaneous Stop events can count as one round. A check that detaches itself (`setsid`) escapes the process-group kill on timeout. The state file is outside the project but not tamper-proof against shell commands. There is no token budget, because hooks get no token count.
-- **Claude Code ends a turn after 8 consecutive stop-hook blocks** with no tool call in between. A loop that does real work resets the count. In one test run with a goal that could not pass and a model told to answer "ok" with no tool, the session ended on its own after the hook had counted 9 Stop events, and the goal stayed `active` (see `examples/05-goal-edge-cases.md`). That is one observation, not a guarantee of the exact count.
+- **Claude Code ends a turn after 8 consecutive stop-hook blocks** with no tool call in between. A loop that does real work resets the count. In one test run with a goal that could not pass and a model told to answer "ok" with no tool, the session ended on its own after the hook had counted 9 Stop events, and the goal stayed `active` (see `examples/05-goal-edge-cases.md`). That is two runs on one machine, not a guarantee of the exact count.
 - **The reviewer agents have no edit tools, but their `Bash` can still write.** They are told not to. `lens` compares `git status` before and after. A test run can leave caches.
 - **`tester` mutates a temporary copy**, so a project whose tests need ignored files (`node_modules`, `.env`), a database or the network may not run there; it then reports `NOT CHECKED`. Its cap of six mutants is only an instruction.
 - **`designer` has no browser.** It judges source and the screenshots you give it, and says so.
 - **`showcase` verifies only what it can run safely.** Steps that need a service, a key or a display are `UNVERIFIED`.
 - **`explore` trusts the metric command.** It cannot tell a gamed metric from a real gain; the skill forbids changing the measurement. `keep` needs a git identity (`user.name`, `user.email`). `explore` needs git.
-- **`guard-bash.sh` is a best-effort list**, not a sandbox.
+- **`guard-bash.sh` is a best-effort list**, not a sandbox. `git commit -n` is blocked, but a message that contains ` -n` as text is blocked too (reword it).
 - **`showcase-facts.sh`:** a file name with a newline or a double quote is skipped from the churn list; README headings are read from Markdown only; `git log` over a very large history is not capped.
 - **Still open at 1.0.0:** a real interactive `discover` conversation on a real idea has not been run by the author (the three-turn run in `examples/` used prepared answers); every example is a toy project and a single headless run; `designer` has never been given a rendered screenshot; native Windows.

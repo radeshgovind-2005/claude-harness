@@ -39,13 +39,13 @@ Step by step, with the other profiles: [docs/getting-started.md](docs/getting-st
 
 No. The plugin itself ships no hooks. Guardrails exist only in a project where you ran `/dev-harness:new` or `/dev-harness:add guardrails`. Once they are there, the shell guard stops these (it exits 2 and tells Claude why, for example `BLOCKED: Force push is not allowed`):
 
-- force push (`--force`, `-f`, `--force-with-lease`, `+refspec`) and `git commit --no-verify`
+- force push (`--force`, `-f`, `--force-with-lease`, `+refspec`) and `git commit --no-verify` (or `-n`, its short form)
 - `cat .env` and edits to `.env`, lockfiles, private keys and the hooks themselves
 - `curl ... | sh`, `rm -rf /` and `rm -rf ~/`
 
 Ordinary commands such as `rm -rf build` and `ls` pass through. Riskier ones (`git reset --hard`, `git clean -f`, shell writes to the hooks) ask you first.
 
-These are checked, not just claimed: the project's own `test-hooks.sh` copies the hooks into a temporary repository and tries each barrier under every profile (172 checks).
+These are checked, not just claimed: the project's own `test-hooks.sh` copies the hooks into a temporary repository and tries each barrier under every profile.
 
 ```bash
 bash .claude/hooks/test-hooks.sh
@@ -76,11 +76,11 @@ Five agents, each with one question (call them as `dev-harness:<name>`). Pick th
 | `designer` | Is the interface well made? | computed contrast, missing states |
 | `tester` | Would the tests catch a break? | mutants made in a temporary copy |
 
-Every skill and agent in detail: [docs/reference.md](docs/reference.md). Real output from each, captured on toy projects: [examples/](examples/README.md).
+Every skill and agent in detail: [docs/reference.md](docs/reference.md). Real output from most of them, captured on toy projects: [examples/](examples/README.md).
 
 ## Honest limits
 
-- **Hooks stop mistakes, not bypass.** They are not a sandbox.
+- **Hooks stop mistakes, not bypass.** They are not a sandbox. They need `jq`: without it they block everything and say how to install it.
 - **The reviewer agents have no edit tools, but their `Bash` can still write.** Check `git status` after a review.
 - **`goal` has no token budget** (hooks get no token count) and its hook is not re-registered after `--continue`.
 - **The `discover` lock covers file-edit tools only**, in the session where it ran.

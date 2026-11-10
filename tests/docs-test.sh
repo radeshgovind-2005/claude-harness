@@ -60,16 +60,17 @@ stale=$(grep -nEi 'arrives in v[0-9]|planned v[0-9]|coming in v[0-9]|not yet imp
 [ -z "$stale" ]; st=$?; first=$(head -n1 <<<"$stale"); check "no 'arrives in vX', 'planned vX' or 'coming in vX' text in the docs, skills or agents${stale:+ ($first)}" $st
 
 echo "Fork guide"
-# Every file that names the owner (outside history) must be one the fork guide tells you to change.
+# Every file that names the owner or the author (outside history) must be one the fork guide tells you to change.
+# Files are matched by their full path; the pages in docs/ are covered by one mention of docs/.
 miss=""
 while IFS= read -r f; do
-  case "$f" in CHANGELOG.md|docs/brief.md|docs/progress.md|docs/contributing.md|examples/*) continue ;; esac
-  b=$(basename "$f")
-  if grep -q "$b" docs/contributing.md; then :; else
-    case "$f" in docs/*) grep -q 'docs/' docs/contributing.md || miss="$miss $f" ;; *) miss="$miss $f" ;; esac
-  fi
-done < <(git grep -l 'radeshgovind-2005' 2>/dev/null)
-[ -z "$miss" ]; check "docs/contributing.md names every file that contains the owner name${miss:+ (not named:$miss)}" $?
+  case "$f" in CHANGELOG.md|docs/brief.md|docs/progress.md|docs/contributing.md|examples/*|tests/docs-test.sh) continue ;; esac
+  case "$f" in
+    docs/*) grep -q 'docs/' docs/contributing.md || miss="$miss $f" ;;
+    *) grep -qF "$f" docs/contributing.md || miss="$miss $f" ;;
+  esac
+done < <(git grep -l -e 'radeshgovind-2005' -e 'Radesh Govind' 2>/dev/null)
+[ -z "$miss" ]; check "docs/contributing.md names (by path) every file that contains the owner or author name${miss:+ (not named:$miss)}" $?
 
 echo "Dogfood: the repository's own CLAUDE.md"
 [ "$(wc -l < CLAUDE.md | tr -d ' ')" -lt 100 ]; check "CLAUDE.md is under 100 lines" $?
@@ -90,6 +91,15 @@ if [ -z "$EXAMPLES" ]; then check "examples/ has files" 1; else
   for f in $EXAMPLES; do b=$(basename "$f"); [ "$b" = README.md ] && continue; grep -q "($b)" examples/README.md || miss="$miss $b"; done
   [ -z "$miss" ]; check "examples/README.md links every example${miss:+ (missing:$miss)}" $?
 fi
+
+echo "Progress notes and scripts"
+grep -q "^## Checkpoint v$VER\b" docs/progress.md; check "docs/progress.md has a checkpoint for v$VER (a new session can resume from it)" $?
+first=$(grep -m1 '^## Checkpoint v' docs/progress.md | sed -E 's/^## Checkpoint v([0-9.]+).*/\1/')
+[ "$first" = "$VER" ]; check "the newest checkpoint in docs/progress.md ($first) is the current version ($VER)" $?
+for sc in scaffold explore goal ax-check showcase-facts; do
+  out=$(bash "$P/scripts/$sc.sh" --help 2>&1); rc=$?
+  [ $rc -eq 0 ] && grep -q '^Usage' <<<"$out"; check "$sc.sh --help prints a Usage line and exits 0" $?
+done
 
 echo "Line endings"
 cr=$(git ls-files '*.sh' '*.json' '*.yml' '*.md' 2>/dev/null | while IFS= read -r f; do [ -f "$f" ] && grep -q $'\r' "$f" && echo "$f"; done)

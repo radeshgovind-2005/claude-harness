@@ -18,6 +18,7 @@ command -v jq >/dev/null || { echo "Error: jq is required."; exit 1; }
 
 MKT=".claude-plugin/marketplace.json"
 SKILL_HOOK_ALLOW="discover goal"   # skills allowed to declare frontmatter hooks (each is state-gated)
+AGENT_EDIT_ALLOW=""                # agents allowed to have edit tools (none: every agent in this plugin is a read-only reviewer)
 
 echo "JSON syntax"
 while IFS= read -r f; do
@@ -96,10 +97,11 @@ while IFS=$'\t' read -r name src; do
     # An agent must list its tools. A missing list would inherit every tool, edit tools included.
     tools=$(sed -n 's/^tools:[[:space:]]*//p' <<<"$afm")
     [ -n "$tools" ]; check "agent '$an' declares a tools list" $?
-    # A reviewer that must not edit gets no edit tools.
-    case "$an" in skeptic|lens-reviewer|architect|designer|tester)
-      ! grep -Eqi '(^|[ ,])(Edit|Write|MultiEdit|NotebookEdit)([ ,(]|$)' <<<"$tools"; check "agent '$an' has no edit tools (tools: $tools)" $? ;;
-    esac
+    # A reviewer that must not edit gets no edit tools. This applies to EVERY agent, so a new agent cannot
+    # slip in with Edit or Write; to allow one on purpose, list it in AGENT_EDIT_ALLOW above.
+    if [[ " $AGENT_EDIT_ALLOW " != *" $an "* ]]; then
+      ! grep -Eqi '(^|[ ,])(Edit|Write|MultiEdit|NotebookEdit)([ ,(]|$)' <<<"$tools"; check "agent '$an' has no edit tools (tools: $tools)" $?
+    fi
   done
 
   # help must not call something "available" that does not exist, and must list every skill and agent.

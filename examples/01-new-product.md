@@ -6,7 +6,7 @@
 - How it was run: headless `claude -p` with `--plugin-dir`. A headless run cannot answer prompts or approve tools, so the confirmations are in the prompt and the tools are passed with `--allowedTools`.
 - Project: a toy Node project (`reading-list`) with `package.json` and a decided `docs/intent.md`, on the branch `chore/dev-harness-setup`.
 
-Shows what `new` writes, what it reports as not done, and what `ax-check.sh` says about the result. The `typecheck`, `lint` and `test` scripts in this toy project are `echo` stubs, and Claude said so in its report.
+Shows what `new` writes, what it reports as not done, and what `ax-check.sh` says about the result. The `typecheck`, `lint` and `test` scripts in this toy project are `echo` stubs, and Claude said so in its report. The line that was trimmed from the output is Claude Code's notice that the project's `permissions.allow` rules were ignored because the folder had not been trusted: the same behaviour the report describes, seen in a real run. The hooks and `deny` rules were active.
 
 Trimmed: one line about the folder trust dialog was removed from the output, and absolute paths were shortened (`<scratch>`, `~`). Nothing else was edited.
 
