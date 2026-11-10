@@ -12,11 +12,21 @@ to detect updates.
 - `scripts/scaffold.sh`: a no-overwrite copier with two phases (`files`, `guardrails`) and `--dry-run`. An existing `.claude/settings.json` is merged (union) only with `--merge-settings`, after the diff is shown.
 - Project templates: a `CLAUDE.md` router with the profile's rules rendered in, the routed docs, the guardrail hooks, `.claude/rules/` and the `dev-harness-hooks` CI workflow.
 - Profiles: `harness.conf` (`BLOCK_MAIN`, `VERIFY_CMD`), read by the hooks and protected from edits. A missing conf falls back to safe defaults.
-- `tests/scaffold-test.sh`: 114 checks, run in CI. The project's `test-hooks.sh` grows from 28 to 58 checks across both `BLOCK_MAIN` settings and the no-conf default.
+- `tests/scaffold-test.sh`: 136 checks, run in CI. The project's `test-hooks.sh` grows from 28 to 138 checks, covering both `BLOCK_MAIN` settings, the no-conf default, odd conf values (CRLF, `true`, spaces) and common command variants.
+- Project CI also checks that the hooks are registered in `settings.json` and that a product `harness.conf` keeps `BLOCK_MAIN` on.
 
 ### Changed
 - Hooks from claude-harness.zip: the main/master checks (edits, commits, push to main) now follow `BLOCK_MAIN`. `verify.sh` reads `VERIFY_CMD` from the conf.
 - `validate.sh`: ignores `templates/` (it is never loaded), allows frontmatter hooks only for `discover`, and checks that `claude plugin details` reports Hooks (0).
+- Hardened after the skeptic review:
+  - The conf parser fails closed: only an explicit `BLOCK_MAIN=0` lifts main protection.
+  - Protected paths are normalized: `..`, `//`, symlinks, case.
+  - The bash guard also catches `git -C`, `+refspec`, `-uf`, `--force-with-lease`, `-c core.hooksPath`, bare `git push` on main, quoted `.env`, `rm -rf ~/` and `/*`, and `bash <(curl …)`.
+  - Shell writes to `.claude/hooks/` or `.claude/settings.json` ask the user first.
+  - A settings merge that fails leaves the file untouched.
+  - `VERIFY_CMD` is written verbatim.
+  - Older hooks that ignore `harness.conf` are reported as FAIL.
+  - `validate.sh` checks that the top CHANGELOG version equals `plugin.json`.
 
 ## 0.1.0 — 2026-11-10
 
