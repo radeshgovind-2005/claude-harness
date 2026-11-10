@@ -34,11 +34,13 @@ The first verdict was CHANGES REQUESTED. All 5 issues were fixed in `4596b88`:
 4. A wrong-case `skill.md` passed on macOS. Fixed.
 5. The help text pointed to skills that haven't shipped. Fixed.
 
-Issue 6, that the GitHub repo doesn't exist yet, is open. See below.
+Issue 6, that the GitHub repo did not exist yet, is resolved: the repo was created and pushed.
+
+### Verified after push (2026-11-10)
+- Installing from GitHub works in an isolated config. `claude plugin marketplace add radeshgovind-2005/claude-harness` and `claude plugin install dev-harness@claude-harness` give version 0.1.0 with the `help` skill.
+- CI on ubuntu-latest passes 20 of 20 checks with `REQUIRE_CLAUDE=1`, so `claude plugin validate` ran.
 
 ### Not verified
-- **Install from GitHub.** `radeshgovind-2005/claude-harness` has not been created or pushed. The README install commands will fail until it is.
-- **CI on ubuntu-latest.** It has never run: there is no remote yet.
 - **`/dev-harness:help` with an exact skill name.** `help help` printed the full guide instead of one row. This is minor model behaviour, not a layout bug.
 - **Windows.** Path handling for the `allowed-tools` rule is untested.
 - **Icon.** The plugin directory warns that no icon exists. This is optional and only matters if the plugin is submitted to Anthropic's directory.
