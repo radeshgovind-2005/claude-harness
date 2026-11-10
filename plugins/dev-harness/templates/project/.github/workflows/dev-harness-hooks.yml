@@ -1,0 +1,32 @@
+# Added by dev-harness. Proves the local guardrails still trip.
+# Local hooks stop mistakes, not deliberate bypass: also require this check
+# and protect your main branch in the Git host settings.
+name: dev-harness-hooks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  hooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate .claude/settings.json
+        run: jq empty .claude/settings.json
+      - name: Hooks are registered in settings.json
+        run: |
+          for h in protect-paths guard-bash verify; do
+            jq -e --arg h "$h" '[.hooks[]?[]?.hooks[]?.command] | map(test($h + "\\.sh")) | any' .claude/settings.json >/dev/null \
+              || { echo "FAIL: $h.sh is not registered in .claude/settings.json"; exit 1; }
+          done
+      - name: harness.conf matches its profile
+        run: |
+          c=.claude/hooks/harness.conf
+          [ -f "$c" ] || { echo "FAIL: $c missing (hooks fall back to defaults)"; exit 1; }
+          p=$(grep -E '^PROFILE=' "$c" | tr -d '\r' | cut -d= -f2)
+          b=$(grep -E '^BLOCK_MAIN=' "$c" | tr -d '\r' | cut -d= -f2)
+          echo "profile=$p BLOCK_MAIN=$b"
+          if [ "$p" = product ] && [ "$b" = 0 ]; then echo "FAIL: product profile with BLOCK_MAIN=0"; exit 1; fi
+      - name: Run hook tests
+        run: bash .claude/hooks/test-hooks.sh

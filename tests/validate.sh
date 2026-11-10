@@ -17,6 +17,7 @@ check() { if [ "$2" = 0 ]; then ok "$1"; else bad "$1"; fi; }  # name status
 command -v jq >/dev/null || { echo "Error: jq is required."; exit 1; }
 
 MKT=".claude-plugin/marketplace.json"
+SKILL_HOOK_ALLOW="discover"   # skills allowed to declare frontmatter hooks
 
 echo "JSON syntax"
 while IFS= read -r f; do
@@ -52,17 +53,24 @@ while IFS=$'\t' read -r name src; do
   pj="$src/.claude-plugin/plugin.json"
   [ -f "$pj" ]; check "plugin.json exists" $?
   [ "$(jq -r '.name // empty' "$pj" 2>/dev/null)" = "$name" ]; check "plugin.json name matches entry" $?
-  [[ "$(jq -r '.version // empty' "$pj" 2>/dev/null)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; check "plugin.json version is semver" $?
+  ver=$(jq -r '.version // empty' "$pj" 2>/dev/null)
+  [[ "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; check "plugin.json version is semver" $?
+  top=$(grep -Eom1 '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md 2>/dev/null | cut -c4-)
+  [ "$top" = "$ver" ]; check "CHANGELOG top entry ($top) matches plugin.json version ($ver)" $?
 
   extra=$(find "$src/.claude-plugin" -mindepth 1 -not -name plugin.json -not -name 'icon.png')
   [ -z "$extra" ]; check ".claude-plugin/ holds only plugin.json${extra:+ (found: $extra)}" $?
 
   # The plugin ships no hooks in any form: hooks/ folder, any hooks.json,
   # a "hooks" key in plugin.json, or hooks: in skill/agent frontmatter.
-  hookfiles=$(find "$src" -name hooks.json -o -type d -name hooks)
+  # Exceptions: templates/ (copied INTO projects, never loaded by Claude Code),
+  # and skills listed in SKILL_HOOK_ALLOW (state-gated, documented in the skill).
+  hookfiles=$(find "$src" -path "$src/templates" -prune -o \( -name hooks.json -o -type d -name hooks \) -print)
   [ -z "$hookfiles" ]; check "no hooks/ folder or hooks.json in plugin${hookfiles:+ (found: $hookfiles)}" $?
   if jq -e 'has("hooks")' "$pj" >/dev/null 2>&1; then bad "plugin.json declares no hooks"; else ok "plugin.json declares no hooks"; fi
   fmhooks=$(find "$src" -name '*.md' -path '*/skills/*' -o -name '*.md' -path '*/agents/*' | while IFS= read -r m; do
+    sk=$(basename "$(dirname "$m")")
+    [[ " $SKILL_HOOK_ALLOW " == *" $sk "* && "$(basename "$m")" == SKILL.md ]] && continue
     frontmatter "$m" 2>/dev/null | grep -Eq '^hooks:' && echo "$m"; done)
   [ -z "$fmhooks" ]; check "no hooks: in skill/agent frontmatter${fmhooks:+ (found: $fmhooks)}" $?
 
@@ -84,9 +92,11 @@ while IFS=$'\t' read -r name src; do
   done
 
   # kebab-case: lowercase letters, digits, hyphens (dots for extensions).
-  # Allowed exceptions: SKILL.md, README.md, CHANGELOG.md, LICENSE, leading-dot names.
+  # Allowed exceptions: names Claude Code or convention require (SKILL.md, CLAUDE.md,
+  # INDEX.md, README.md, CHANGELOG.md, LICENSE) and leading-dot names.
   badnames=$(find "$src" -mindepth 1 \
-    -not -name 'SKILL.md' -not -name 'README.md' -not -name 'CHANGELOG.md' -not -name 'LICENSE' \
+    -not -name 'SKILL.md' -not -name 'CLAUDE.md' -not -name 'INDEX.md' \
+    -not -name 'README.md' -not -name 'CHANGELOG.md' -not -name 'LICENSE' \
     -not -name '.*' -not -name '.DS_Store' \
     | while IFS= read -r p; do b=$(basename "$p"); [[ "$b" =~ ^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*$ ]] || echo "$p"; done)
   [ -z "$badnames" ]; check "all file and folder names are kebab-case${badnames:+ (bad: $badnames)}" $?
@@ -108,6 +118,9 @@ if command -v claude >/dev/null; then
     # Directory profile: fails on problems the public catalog refuses (e.g. missing README).
     # Not combined with --strict, because that would also fail on the optional icon warning.
     run_validate "claude plugin validate --profile directory $src" --profile directory "$src"
+    pname=$(jq -r .name "$src/.claude-plugin/plugin.json")
+    det=$(claude --plugin-dir "$src" plugin details "$pname" 2>&1)
+    grep -Eq '^[[:space:]]*Hooks \(0\)' <<<"$det"; check "claude plugin details: $pname loads Hooks (0)" $?
   done
 elif [ "${REQUIRE_CLAUDE:-0}" = 1 ]; then
   bad "claude CLI not found and REQUIRE_CLAUDE=1"

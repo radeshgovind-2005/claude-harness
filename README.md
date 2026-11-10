@@ -4,7 +4,25 @@ A Claude Code plugin marketplace with one plugin: **dev-harness**.
 
 dev-harness sets up and runs software projects the way experienced Claude Code users do. Before anything gets built, it works out what you're making, who it's for, and what matters most. It then scaffolds memory files and guardrails that suit the kind of project: a prototype, a product, or an assignment. Changes get reviewed by a fresh-context skeptic, and every correction is kept as a lesson so the mistake doesn't come back.
 
-> **Status: v0.1.0 (skeleton).** Only `/dev-harness:help` works so far. The other skills arrive milestone by milestone; see [CHANGELOG.md](CHANGELOG.md) and the roadmap below.
+> **Status: v0.2.0.** `help`, `discover` and `new` work. The other skills arrive milestone by milestone; see [CHANGELOG.md](CHANGELOG.md) and the roadmap below.
+
+## Use
+
+In any project folder:
+
+```
+/dev-harness:new a CLI that tracks my reading list
+```
+
+`new` runs `discover` first: Claude reflects back what it thinks the work is about, asks only what is missing, proposes 2–3 directions (one bold), and saves the decision to `docs/intent.md`. Then you pick a profile and it scaffolds the project. It never overwrites a file you already have.
+
+| Profile | For | `main` | Check on stop | Push asks |
+|---|---|---|---|---|
+| prototype | spikes, demos, learning | allowed | off | no |
+| product | real users or a team | blocked | typecheck + lint | yes |
+| assignment | graded or course work | allowed | tests | no |
+
+Every profile blocks force push, `--no-verify`, reading `.env`, `rm -rf /`, `curl | sh`, and edits to hooks, secrets and lockfiles. What lands in the project: `CLAUDE.md` (a router under 100 lines), `docs/` (intent, architecture, conventions, workflow, lessons, agent guide), `.claude/hooks/` with `harness.conf`, `.claude/settings.json`, and a CI workflow that tests the hooks.
 
 ## Install
 
@@ -37,8 +55,8 @@ Skills and agents live in the plugin and work in every project. Strict hooks, li
 
 | Version | Adds |
 |---|---|
-| 0.1.0 | Marketplace, plugin skeleton, `help` |
-| 0.2.0 | `discover`, `new`, profiles, guardrail hooks copied into projects |
+| 0.1.0 | Marketplace, plugin skeleton, `help` (done) |
+| 0.2.0 | `discover`, `new`, profiles, guardrail hooks copied into projects (done) |
 | 0.3.0 | `add`, `skeptic` agent, `lesson`, memory files |
 | 0.4.0 | `explore`, `lens`, `goal` |
 | 0.5.0 | `showcase`, `architect` / `designer` / `tester` agents |

@@ -1,0 +1,5 @@
+- IMPORTANT: Never work on `main`. Use a branch or a git worktree. (A hook blocks edits, commits and pushes on `main`.)
+- YOU MUST use plan mode for changes to more than 3 files. Show the plan and wait for approval.
+- YOU MUST get a fresh-context review of every non-trivial diff before you report it as done.
+- `verify.sh` runs `VERIFY_CMD` when you stop. If it fails, fix it or tell the user why you cannot.
+- `git push` asks the user first.
