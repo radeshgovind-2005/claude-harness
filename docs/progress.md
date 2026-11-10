@@ -31,12 +31,14 @@ A fresh-context reviewer got the goal and `git diff main..build/v0.3.0`. Its ver
   - The guardrails phase now adds a `skip .gitignore` line to `new`'s output. It was already in the CHANGELOG.
 - **Not checked by the reviewer:** live skill behaviour, and that `all` writes guardrails last (skill text only, no test).
 
+- **CI on ubuntu** (run on `bdca793`, after the push): `validate.sh` 37/37 and `scaffold-test.sh` 192/192 passed.
+- **Installing v0.3.0 from GitHub** (isolated config): version 0.3.0, Skills (5), Agents (1), Hooks (0). Scaffolding from the install cache printed the expected `note` lines for `--part memory`, and the project hook tests passed 138/138.
+
 ### Not verified
 - **Interactive prompts.** In headless mode `AskUserQuestion` cannot be answered, so "asks before promoting to `CLAUDE.md`" is shown only as "did not edit `CLAUDE.md`". For a universal rule the model chose not to promote because it duplicated a checklist line, instead of asking.
 - **The skeptic's "never edits" is not enforced.** `tools` removes Edit and Write but not shell writes. The refusal above comes from the agent's instructions. Test runs can create files (`__pycache__` appeared once). In projects with the guardrails, `guard-bash.sh` and `protect-paths.sh` also fire on subagent tool calls (per the docs; not tested live), but they guard only protected paths, not source files.
 - **`discover` actually reading a `[discover]` lesson in a live run.** Only the instruction text and the tag consistency are tested.
 - **`CLAUDE.md` placeholder filling by `add` in headless mode.** The `Edit` needs approval, so the skill reported the placeholders as unfilled.
-- **CI on ubuntu and an install from GitHub for 0.3.0.** Neither has run: nothing is pushed.
 - Carried over: a real interactive discover conversation; the assignment profile end to end in a live session; Windows and CRLF checkouts of the hook scripts.
 
 ### Next
