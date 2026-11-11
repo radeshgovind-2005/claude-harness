@@ -251,8 +251,8 @@ for v in 'BLOCK_MAIN="0"' 'BLOCK_MAIN=0' ' BLOCK_MAIN = 0 ' $'BLOCK_MAIN=0\r' $'
     printf '%s\n%s\n' "$pl" "$v" > "$d/.claude/hooks/harness.conf"
     c=$(ci); e=$(edit_on_main "$d")
     # CI must fail exactly when the product project's own hook lets an edit on main through.
-    { [ "$c" != 0 ] && [ "$e" = 0 ]; } || { [ "$c" = 0 ] && [ "$e" = 2 ]; }
-    check "CI and hooks agree on [$pl | $(printf '%s' "$v" | tr '\r\n' '^|')] (ci=$c hook=$e)" $?
+    { [ "$c" != 0 ] && [ "$e" = 0 ]; } || { [ "$c" = 0 ] && [ "$e" = 2 ]; }; r=$?   # saved first: the $(...) in the label would reset $?
+    check "CI and hooks agree on [$pl | $(printf '%s' "$v" | tr '\r\n' '^|')] (ci=$c hook=$e)" $r
   done
 done
 printf 'PROFILE=product\nBLOCK_MAIN="0"\n' > "$d/.claude/hooks/harness.conf"; [ "$(ci)" != 0 ]; check 'CI fails: product with BLOCK_MAIN="0"' $?

@@ -86,7 +86,8 @@ for v in 'PROFILE=product' 'PROFILE="product"' ' PROFILE = product ' $'PROFILE=p
   printf '%s\nVERIFY_CMD="make test"\n' "$v" > "$D/.claude/hooks/harness.conf"
   want=$(bash "$D/.claude/hooks/harness-conf.sh" PROFILE "")
   got=$(bash "$AX" "$D" 2>&1 | sed -nE 's/^(PASS|WARN) +harness\.conf profile [^ ]+ //p' | sed -E "s/^PROFILE is '(.*)', expected.*/\\1/")
-  [ "$got" = "$want" ]; check "same PROFILE for [$(printf '%s' "$v" | tr '\r\n' '^|')]: '$want'" $?
+  [ "$got" = "$want" ]; r=$?   # saved first: the $(...) in the label would reset $?
+  check "same PROFILE for [$(printf '%s' "$v" | tr '\r\n' '^|')]: '$want'" $r
 done
 printf 'PROFILE=product\nVERIFY_CMD=" make test "\n' > "$D/.claude/hooks/harness.conf"
 OUT=$(ax); has "^PASS +VERIFY_CMD [^ ]+ set: $(bash "$D/.claude/hooks/harness-conf.sh" VERIFY_CMD x)\$"; check "same VERIFY_CMD for a quoted value with inner spaces" $?
