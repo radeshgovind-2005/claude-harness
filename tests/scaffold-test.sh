@@ -217,7 +217,10 @@ done
 
 echo "VERIFY_CMD detection (no --verify-cmd)"
 # vd PROFILE SETUP...: scaffold guardrails into a repo prepared by SETUP (eval'd in it), print VERIFY_CMD.
-vd() { local prof="$1" d; shift; d=$(newrepo); (cd "$d" && eval "$*"); bash "$SC" "$d" guardrails --profile "$prof" >"$d.log" 2>&1
+# Detection only keeps a command whose tool is installed: point it at stubs so the result does not
+# depend on this machine (DH_DETECT_PATH is read by scaffold.sh for that lookup only).
+STUBS="$W/stubs"; mkdir -p "$STUBS"; for t in npm pnpm yarn make cargo go python3 ruff mypy; do printf '#!/bin/sh\n' > "$STUBS/$t"; chmod +x "$STUBS/$t"; done
+vd() { local prof="$1" d; shift; d=$(newrepo); (cd "$d" && eval "$*"); DH_DETECT_PATH="${VD_PATH:-$STUBS}" bash "$SC" "$d" guardrails --profile "$prof" >"$d.log" 2>&1; cp "$d.log" "$W/last-vd.log"
   bash "$d/.claude/hooks/harness-conf.sh" VERIFY_CMD "<missing>"; }
 PJ='{"scripts":{"typecheck":"tsc --noEmit","lint":"eslint .","test":"vitest run"}}'
 [ "$(vd product "printf '%s' '$PJ' > package.json")" = "npm run typecheck && npm run lint" ]; check "product + package.json: typecheck && lint" $?
@@ -229,13 +232,17 @@ PJ='{"scripts":{"typecheck":"tsc --noEmit","lint":"eslint .","test":"vitest run"
 [ "$(vd product "printf 'lint:\n\truff .\n' > Makefile")" = "make lint" ]; check "product + Makefile lint target: make lint" $?
 [ "$(vd assignment "touch Cargo.toml")" = "cargo test" ]; check "assignment + Cargo.toml: cargo test" $?
 [ "$(vd product "touch go.mod")" = "go vet ./..." ]; check "product + go.mod: go vet" $?
-[ "$(vd assignment "touch pyproject.toml")" = "python3 -m pytest -q" ]; check "assignment + pyproject.toml: pytest" $?
+[ "$(vd assignment "touch pyproject.toml; mkdir tests")" = "python3 -m pytest -q" ]; check "assignment + pyproject.toml and tests/: pytest" $?
+[ "$(vd assignment "printf '[tool.pytest.ini_options]\n' > pyproject.toml")" = "python3 -m pytest -q" ]; check "assignment + pyproject [tool.pytest]: pytest" $?
+[ "$(vd assignment "touch pyproject.toml")" = "" ]; check "assignment + plain pyproject.toml: empty (pytest not configured)" $?
+[ "$(VD_PATH=/nonexistent vd assignment "touch Cargo.toml")" = "" ]; check "a detected command whose tool is not installed is left empty" $?
+grep -q "not installed here" "$W/last-vd.log"; check "... and the note says the tool is not installed" $?
 [ "$(vd product "printf '[tool.ruff]\n[tool.mypy]\n' > pyproject.toml")" = "ruff check . && mypy ." ]; check "product + pyproject ruff and mypy" $?
 [ "$(vd product "touch pyproject.toml")" = "" ]; check "product + plain pyproject: empty (no guess)" $?
 [ "$(vd prototype "printf '%s' '$PJ' > package.json")" = "" ]; check "prototype: never detected (verify off)" $?
 d=$(newrepo); printf '%s' "$PJ" > "$d/package.json"; bash "$SC" "$d" guardrails --profile assignment --verify-cmd 'make check' >/dev/null 2>&1
 [ "$(bash "$d/.claude/hooks/harness-conf.sh" VERIFY_CMD x)" = "make check" ]; check "--verify-cmd wins over detection" $?
-d=$(newrepo); printf '%s' "$PJ" > "$d/package.json"; out=$(bash "$SC" "$d" guardrails --profile product 2>&1)
+d=$(newrepo); printf '%s' "$PJ" > "$d/package.json"; out=$(DH_DETECT_PATH="$STUBS" bash "$SC" "$d" guardrails --profile product 2>&1)
 grep -q '^  note    VERIFY_CMD detected: npm run typecheck && npm run lint' <<<"$out"; check "a detected VERIFY_CMD is reported as a note" $?
 
 echo "The CI profile check reads harness.conf like the hooks"

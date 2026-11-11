@@ -51,13 +51,15 @@ fi
 # the check in its own process group and polls every 0.1 s, so the whole tree is killed on timeout.
 # (A check that detaches itself with setsid escapes the fallback's kill.)
 run_check() {
-  local t tmp pid ticks=0
+  local t tmp pid ticks=0 start=$SECONDS
   timed_out=0
   t=$(command -v timeout 2>/dev/null || command -v gtimeout 2>/dev/null)
   if [ -n "$t" ] && [ -z "${DH_VERIFY_NO_TIMEOUT_CMD:-}" ]; then
     output=$("$t" -k 5 "$LIMIT" bash -c "$VERIFY_CMD" 2>&1 </dev/null)
     status=$?
-    [ $status -eq 124 ] || [ $status -eq 137 ] && timed_out=1
+    # 124/137 also come from a check that exits that way itself (or is OOM-killed): only a run that
+    # lasted the whole limit counts as a time-out. Either way the stop is blocked.
+    if { [ $status -eq 124 ] || [ $status -eq 137 ]; } && [ $((SECONDS - start)) -ge "$LIMIT" ]; then timed_out=1; fi
     return 0
   fi
   tmp=$(mktemp "${TMPDIR:-/tmp}/dh-verify.XXXXXX") || { output="mktemp failed"; status=1; return 0; }

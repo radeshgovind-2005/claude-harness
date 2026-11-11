@@ -190,6 +190,10 @@ for mode in "" DH_VERIFY_NO_TIMEOUT_CMD=1; do
   check "[$label] a fast passing check is allowed"            0 "$(limited 1 "$mode" | cut -d' ' -f1)"
   setconf "BLOCK_MAIN=1" 'VERIFY_CMD="false"'
   check "[$label] a fast failing check still blocks"          2 "$(limited 1 "$mode" | cut -d' ' -f1)"
+  # exit 124 is what GNU timeout returns on a time-out; a check that exits 124 at once has not timed out.
+  setconf "BLOCK_MAIN=1" 'VERIFY_CMD="exit 124"'
+  check "[$label] a fast check exiting 124 blocks"            2 "$(limited 3 "$mode" | cut -d' ' -f1)"
+  grep -q 'VERIFICATION FAILED (exit 124)' "$T/v.err"; check "[$label] ... as FAILED, not TIMED OUT" 0 $?
 done
 
 echo "verify.sh runs only when the work tree has changes"

@@ -118,8 +118,8 @@ detect_verify() {
       grep -q '^\[tool\.ruff' "$DEST/pyproject.toml" && cmd="ruff check ."
       grep -q '^\[tool\.mypy' "$DEST/pyproject.toml" && cmd="${cmd:+$cmd && }mypy ."
       printf '%s' "$cmd"
-    else
-      printf 'python3 -m pytest -q'
+    elif grep -q '^\[tool\.pytest' "$DEST/pyproject.toml" || [ -f "$DEST/pytest.ini" ] || [ -d "$DEST/tests" ]; then
+      printf 'python3 -m pytest -q'   # only when pytest is configured or a tests/ folder exists
     fi
   fi
 }
@@ -195,6 +195,13 @@ if [ "$PHASE" = guardrails ]; then
     case "$PROFILE" in
       product|assignment)
         VERIFY=$(detect_verify "$PROFILE")
+        # A command whose tool is not installed would fail on every Stop: leave it empty and say why.
+        # DH_DETECT_PATH (tests only) replaces PATH for this lookup.
+        tool="${VERIFY%% *}"
+        if [ -n "$VERIFY" ] && ! PATH="${DH_DETECT_PATH:-$PATH}" command -v "$tool" >/dev/null 2>&1; then
+          say note "VERIFY_CMD not set: detected '$VERIFY', but '$tool' is not installed here"
+          VERIFY=""
+        fi
         if [ -n "$VERIFY" ]; then
           VERIFY_SET=1
           say note "VERIFY_CMD detected: $VERIFY (confirm it with the user; only the user edits .claude/hooks/harness.conf)"
