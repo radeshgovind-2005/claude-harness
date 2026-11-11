@@ -174,16 +174,22 @@ sleepers() { ps -A -o command= 2>/dev/null | grep -cxF "sleep $NAP"; }
 for mode in "" DH_VERIFY_NO_TIMEOUT_CMD=1; do
   label=${mode:+"bash fallback"}; label=${label:-"timeout command if present"}
   setconf "BLOCK_MAIN=1" "VERIFY_CMD=\"sleep $NAP & sleep $NAP; wait\""
-  read -r rc secs <<<"$(limited 2 "$mode")"
+  read -r rc secs <<<"$(limited 1 "$mode")"
   check "[$label] a check over the limit blocks the stop"     2 "$rc"
   check "[$label] ... and is stopped in time (<10 s)"         1 "$([ "$secs" -lt 10 ] && echo 1 || echo 0)"
-  grep -q 'TIMED OUT after 2 s' "$T/v.err"; check "[$label] ... with a TIMED OUT message" 0 $?
-  sleep 1
+  grep -q 'TIMED OUT after 1 s' "$T/v.err"; check "[$label] ... with a TIMED OUT message" 0 $?
+  n=0; while [ "$(sleepers)" != 0 ] && [ $n -lt 30 ]; do sleep 0.1; n=$((n + 1)); done
+  check "[$label] ... and leaves no process behind"           0 "$(sleepers)"
+  # A check that ignores SIGTERM (the ignore is inherited by sleep) must still be killed.
+  setconf "BLOCK_MAIN=1" "VERIFY_CMD=\"trap '' TERM; sleep $NAP\""
+  read -r rc secs <<<"$(limited 1 "$mode")"
+  check "[$label] a check that ignores TERM is still stopped (<10 s)" 1 "$([ "$rc" = 2 ] && [ "$secs" -lt 10 ] && echo 1 || echo 0)"
+  n=0; while [ "$(sleepers)" != 0 ] && [ $n -lt 30 ]; do sleep 0.1; n=$((n + 1)); done
   check "[$label] ... and leaves no process behind"           0 "$(sleepers)"
   setconf "BLOCK_MAIN=1" 'VERIFY_CMD="true"'
-  check "[$label] a fast passing check is allowed"            0 "$(limited 2 "$mode" | cut -d' ' -f1)"
+  check "[$label] a fast passing check is allowed"            0 "$(limited 1 "$mode" | cut -d' ' -f1)"
   setconf "BLOCK_MAIN=1" 'VERIFY_CMD="false"'
-  check "[$label] a fast failing check still blocks"          2 "$(limited 2 "$mode" | cut -d' ' -f1)"
+  check "[$label] a fast failing check still blocks"          2 "$(limited 1 "$mode" | cut -d' ' -f1)"
 done
 
 echo "verify.sh runs only when the work tree has changes"

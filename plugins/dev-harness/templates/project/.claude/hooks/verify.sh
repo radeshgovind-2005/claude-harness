@@ -68,7 +68,9 @@ run_check() {
   while kill -0 "$pid" 2>/dev/null; do
     if [ "$ticks" -ge $((LIMIT * 10)) ]; then
       timed_out=1
-      kill -TERM -- "-$pid" 2>/dev/null; sleep 1; kill -KILL -- "-$pid" 2>/dev/null
+      kill -TERM -- "-$pid" 2>/dev/null
+      ticks=0; while kill -0 "$pid" 2>/dev/null && [ $ticks -lt 10 ]; do sleep 0.1; ticks=$((ticks + 1)); done
+      kill -KILL -- "-$pid" 2>/dev/null
       break
     fi
     sleep 0.1; ticks=$((ticks + 1))
