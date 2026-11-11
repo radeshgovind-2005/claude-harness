@@ -190,6 +190,48 @@ newproj higher none 'echo 1'; EXPLORE_TIMEOUT=777 ex measure >/dev/null
 sleep 1; [ -z "$(pgrep -f 'sleep 777' || true)" ]; check "no sleeping helper process is left behind" $?
 start=$(date +%s); EXPLORE_TIMEOUT=600 ex measure >/dev/null; [ $(( $(date +%s) - start )) -lt 3 ]; check "a fast metric returns fast (no fixed wait)" $?
 
+echo "Optional Metric lines (Runs, Noise, Correctness, Evidence) and --file"
+# addline TEXT: add a Metric line right after "- Target:".
+addline() { T="$1" awk 'BEGIN { t = ENVIRON["T"] } { print } /^- Target:/ { print t }' "$D/docs/experiments.md" > "$D/.exp.tmp" && mv "$D/.exp.tmp" "$D/docs/experiments.md"; }
+newproj; addline "- Runs: 5"; g add -A; g commit -q -m metric
+out=$(ex baseline); [ "$(exs baseline)" != 0 ] && grep -q "Runs: 5" <<<"$out"; check "Runs: 5 refuses a single-run baseline" $?
+[ "$(exs measure --runs 3)" != 0 ]; check "Runs: 5 refuses measure --runs 3" $?
+out=$(ex baseline --runs 5); grep -q '^SPREAD=0.00%' <<<"$out"; check "a 5-run baseline is recorded and prints its SPREAD" $?
+newproj higher none 'n=$(cat count 2>/dev/null || echo 0); n=$((n+1)); echo $n > count; case $n in 1) echo 9;; 2) echo 11;; *) echo 10;; esac'
+out=$(ex measure --runs 3); grep -q '^SPREAD=20.00%$' <<<"$out"; check "SPREAD is (max - min) / median (9..11 of 10 = 20%)" $?
+newproj; addline "- Noise: 5%"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 10.3; out=$(ex keep "tiny" 10.3); [ "$(rowcount kept)" = 0 ] && grep -q 'within the noise threshold (Noise: 5%)' <<<"$out"; check "Noise: 5% refuses a 3% gain" $?
+val 10.6; ex keep "real" 10.6 >/dev/null; [ "$(rowcount kept)" = 1 ]; check "Noise: 5% keeps a 6% gain" $?
+newproj lower; addline "- Noise: 5%"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 9.7; [ "$(exs keep tiny 9.7)" != 0 ]; check "Noise with lower is better: a 3% drop is refused" $?
+val 9; ex keep real 9 >/dev/null; [ "$(rowcount kept)" = 1 ]; check "Noise with lower is better: a 10% drop is kept" $?
+newproj; addline "- Correctness: \`test -f ok.flag\`"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; out=$(ex keep "faster but wrong" 12); [ "$(rowcount kept)" = 0 ] && grep -q 'correctness check failed' <<<"$out"; check "Correctness failing: keep is refused" $?
+[ "$(git -C "$D" log --oneline | wc -l | tr -d ' ')" = 2 ]; check "... and nothing is committed" $?
+touch "$D/ok.flag"; ex keep "faster and right" 12 >/dev/null; [ "$(rowcount kept)" = 1 ]; check "Correctness passing: keep works" $?
+newproj; addline "- Evidence: required"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; out=$(ex keep "hunch" 12); [ "$(rowcount kept)" = 0 ] && grep -q 'needs --evidence' <<<"$out"; check "Evidence: required refuses keep without --evidence" $?
+: > "$W/empty.txt"; [ "$(exs keep hunch 12 --evidence "$W/empty.txt")" != 0 ]; check "... and with an empty evidence file" $?
+echo "hot: parse() 80%" > "$W/prof.txt"; ex keep "cache parse" 12 "memo" --evidence "$W/prof.txt" >/dev/null
+[ "$(rowcount kept)" = 1 ] && grep -q "memo; evidence: $W/prof.txt" "$D/docs/experiments.md"; check "with evidence: kept, and the note names the file" $?
+newproj; ex baseline >/dev/null; val 12; ex keep "plain" 12 >/dev/null; [ "$(rowcount kept)" = 1 ]; check "without the optional lines, keep works as before" $?
+newproj; addline "- Correctness: false"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; out=$(ex keep v1 12); [ "$(rowcount kept)" = 0 ] && grep -q "Correctness" <<<"$out"; check "a Correctness line without backticks is refused, not ignored" $?
+newproj; addline "- Runs: three"; g add -A; g commit -q -m metric
+out=$(ex measure); [ "$(exs measure)" != 0 ] && grep -q "Runs" <<<"$out"; check "a Runs line without a number is refused, not ignored" $?
+newproj; addline "- Noise: a little"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; [ "$(exs keep v 12)" != 0 ] && [ "$(rowcount kept)" = 0 ]; check "a Noise line without a number is refused, not ignored" $?
+newproj; addline "- Evidence: yes please"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; [ "$(exs keep v 12)" != 0 ]; check "an Evidence line that is not 'required' is refused, not ignored" $?
+newproj; addline "- Noise: <set this from the baseline SPREAD>"; addline "- Correctness: \`<the test command>\`"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; ex keep v 12 >/dev/null; [ "$(rowcount kept)" = 1 ]; check "template <placeholders> still count as not set" $?
+
+D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt"; g add -A; g commit -q -m init
+printf '# Perf\n\n## Metric\n- Name: v\n- Measured by: `cat value.txt`\n- Direction: higher is better\n- Target: none\n\n| Date | Variant | Metric | Result | Kept or reverted | Note |\n|---|---|---|---|---|---|\n' > "$W/perf-tpl.md"
+out=$(ex --file docs/perf.md --template "$W/perf-tpl.md" start p); [ -f "$D/docs/perf.md" ] && [ ! -e "$D/docs/experiments.md" ]; check "--file and --template: start creates docs/perf.md" $?
+ex --file docs/perf.md baseline >/dev/null; grep -q '| baseline |' "$D/docs/perf.md"; check "--file: baseline logs into docs/perf.md" $?
+[ "$(exs --file ../outside.md status)" != 0 ]; check "--file outside the project is refused" $?
+
 echo
 echo "Result: $pass passed, $fail failed"
 [ $fail -eq 0 ]

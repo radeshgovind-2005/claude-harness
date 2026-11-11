@@ -153,7 +153,7 @@ part_files() { # part -> expected file set (space separated, sorted, trailing sp
     workflows) echo "docs/agents/first-workflow.md docs/audits/README.md docs/workflow.md " ;;
     rules) echo ".claude/rules/example-api.md " ;;
     tasks) echo ".gitignore docs/tasks/INDEX.md docs/tasks/_template.md " ;;
-    memory) echo ".gitignore CLAUDE.md docs/INDEX.md docs/architecture.md docs/conventions.md docs/experiments.md docs/lessons.md docs/progress.md " ;;
+    memory) echo ".gitignore CLAUDE.md docs/INDEX.md docs/architecture.md docs/conventions.md docs/experiments.md docs/lessons.md docs/parts.md docs/progress.md " ;;
   esac; }
 for part in lessons reviewer workflows rules tasks memory; do
   d=$(newrepo)

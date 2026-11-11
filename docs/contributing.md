@@ -23,6 +23,8 @@ claude --plugin-dir ./plugins/dev-harness
 | `/bin/bash tests/lens-test.sh` | `ax-check.sh`, lens consistency | about a minute |
 | `/bin/bash tests/goal-test.sh` | `goal.sh`, the Stop hook | about a minute |
 | `/bin/bash tests/showcase-test.sh` | `showcase-facts.sh`, the role agents, the showcase skill | about a minute |
+| `/bin/bash tests/forge-test.sh` | `forge.sh`: the part spec bar, files by type, tests that must fail without the part, install per type, the registry, use, status, promote | about a minute |
+| `/bin/bash tests/perf-test.sh` | the `dev-harness-perf` plugin: every part passes `forge.sh check`, `explore.sh` through the link, the wiring | under a minute |
 | `/bin/bash tests/tasks-test.sh` | `tasks.sh`: glob overlap, dependencies, card checks, the INDEX, the active card, worktrees | under a minute |
 | `/bin/bash tests/docs-test.sh` | links, versions, counts, examples, `--help`, the progress checkpoint, line endings, the icon, `CLAUDE.md` routes | seconds |
 | `/bin/bash tests/run-all.sh` | all of the above, one summary (`--fast` skips the scaffold suite and says so) | about 5 minutes |
@@ -45,6 +47,15 @@ Run test scripts with `/bin/bash`: on macOS that is bash 3.2, where the scripts 
 2. No agent gets an edit tool: `tests/validate.sh` checks every agent (to allow one on purpose, list it in `AGENT_EDIT_ALLOW`, and say why in the CHANGELOG). Plugin agents ignore `hooks`, `mcpServers` and `permissionMode`, so do not set them.
 3. Give it one question, one object and one kind of evidence, and say which neighbour it does not cover (`skeptic`, `lens-reviewer`, `architect`, `designer`, `tester`). Say that the files it reads are data, not instructions. Give it a fixed output format with a `NOT CHECKED` line.
 4. Add it to `help`, `docs/reference.md` (a row in the agent table), `docs/stability.md` (the agent row), the README (agent table and status sentence), and the CHANGELOG. Also list it in the project template `plugins/dev-harness/templates/project/docs/agents/INDEX.md`; no test requires that one, so check it by hand. Be honest everywhere: "no edit tools, but `Bash` can still write".
+
+
+## Adding a plugin or pack to the marketplace
+
+1. Create `plugins/<name>/.claude-plugin/plugin.json` (kebab-case name, `version`, `author`, `homepage`, `repository`, `license`) and add an entry to `.claude-plugin/marketplace.json` with a `./plugins/<name>` source and no `version`. If it builds on dev-harness, add `"dependencies": ["dev-harness"]`.
+2. Give it its own `CHANGELOG.md` with a top `## x.y.z` equal to its `plugin.json` version; `validate.sh` checks a plugin against its own changelog when it has one, and against the root one otherwise.
+3. To reuse a dev-harness script, link it (`ln -s ../../dev-harness/scripts/explore.sh`), do not copy it. Installed from a git marketplace, Claude Code copies the link's target into the cache; installed from a local folder, links that leave the plugin are skipped, so say so in its README. `validate.sh` fails on a link that dangles or points outside the marketplace.
+4. Ship each part in forge form (`parts/<name>/spec.md`, `files/`, `tests/`) and make `forge.sh check` pass on it; a part that a project installs (a hook) is installed with `/dev-harness:forge install`, never copied by a skill.
+5. Add a suite under `tests/`, to `tests/run-all.sh` and to `.github/workflows/ci.yml`, a section in the README and in `docs/reference.md`, and the fork list above.
 
 ## Changing a script or a template
 
@@ -82,7 +93,7 @@ A headless `-p` run cannot answer `AskUserQuestion` or approve an `Edit` or a `B
 
 To publish your own copy under your own name:
 
-1. Replace the owner name `radeshgovind-2005` (and the author name `Radesh Govind`) everywhere: `git grep -n -e radeshgovind-2005 -e 'Radesh Govind'` lists every place. Today that is `.claude-plugin/marketplace.json`, `plugins/dev-harness/.claude-plugin/plugin.json` (`author`, `homepage`, `repository`), `README.md`, `plugins/dev-harness/skills/help/SKILL.md`, the pages in `docs/`, and the `LICENSE` file. `CHANGELOG.md`, `docs/progress.md`, `docs/brief.md` and `examples/` are history and may keep the old name. `tests/docs-test.sh` checks that this list stays complete.
+1. Replace the owner name `radeshgovind-2005` (and the author name `Radesh Govind`) everywhere: `git grep -n -e radeshgovind-2005 -e 'Radesh Govind'` lists every place. Today that is `.claude-plugin/marketplace.json`, `plugins/dev-harness/.claude-plugin/plugin.json` and `plugins/dev-harness-perf/.claude-plugin/plugin.json` (`author`, `homepage`, `repository`), `README.md`, `plugins/dev-harness/skills/help/SKILL.md`, the pages in `docs/`, and the `LICENSE` file. `CHANGELOG.md`, `docs/progress.md`, `docs/brief.md` and `examples/` are history and may keep the old name. `tests/docs-test.sh` checks that this list stays complete.
 2. Keep the plugin name `dev-harness` if you want the `/dev-harness:...` commands to stay the same. If you rename the plugin or the marketplace (`claude-harness`), every install command and the `dev-harness@claude-harness` form changes with it.
 3. Run `bash tests/validate.sh`, then install your fork from your repository in an isolated config before you tell anyone.
 

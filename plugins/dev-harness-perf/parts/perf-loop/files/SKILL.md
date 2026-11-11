@@ -1,0 +1,1 @@
+../../../skills/perf-loop/SKILL.md

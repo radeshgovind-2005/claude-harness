@@ -6,12 +6,64 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 
 Read this first when resuming. Update it at every checkpoint.
 
-- **Version:** 1.1.0 (task cards), merged into `main`, tagged `v1.1.0` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43031442188 and 43031438275), and installing from GitHub is verified (see "Verified after the push" in the v1.1.0 checkpoint). No GitHub release was created for it. Next milestone: v1.2.0 (forge, promote, perf pack), planned before building. 1.0.2 (audit fixes) was merged into `main`, tagged `v1.0.2` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43017098908 and 43017097262), and installing from GitHub is verified (see "Verified after the push" in the v1.0.2 checkpoint). No GitHub release was created for it. 1.0.1 is pushed and released on GitHub (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
+- **Version:** 1.2.0 (forge, promote, and the `dev-harness-perf` 0.1.0 pack), merged into `main` and tagged `v1.2.0` and `dev-harness-perf-v0.1.0` locally on 2026-11-11, NOT pushed yet (waiting for the user's yes), so its CI and the GitHub install, including the symlinked `explore.sh` in the perf plugin cache, are NOT VERIFIED. All three milestones of the 2026-11-11 plan are built. 1.1.0 (task cards) was merged into `main`, tagged `v1.1.0` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43031442188 and 43031438275), and installing from GitHub is verified (see "Verified after the push" in the v1.1.0 checkpoint). No GitHub release was created for it. 1.0.2 (audit fixes) was merged into `main`, tagged `v1.0.2` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43017098908 and 43017097262), and installing from GitHub is verified (see "Verified after the push" in the v1.0.2 checkpoint). No GitHub release was created for it. 1.0.1 is pushed and released on GitHub (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
 - **Branches:** `main` is the release branch. `build/v0.1.0` to `build/v1.0.0` are the finished milestone branches. The old local branch `fix/ci-git-identity` was deleted on 2026-11-10 (its change was already on `main`, cd69265).
 - **Known quirk:** the `v0.4.0` tag points at `db84e15`, whose CI was red for one test (a missing git identity on runners). The fix is on `main` only; the tag was not moved.
 - **Release routine** (also in `docs/contributing.md`): branch `build/vX.Y.Z`, small commits, all suites (`tests/run-all.sh`), mutation checks, a fresh-context skeptic on `git diff main..build/vX.Y.Z`, CHANGELOG, a checkpoint here, merge, annotated tag, ask before pushing, then watch CI and install from GitHub in an isolated config.
 - **Open for the user:** run `/dev-harness:discover` on a real idea (the most valuable next test), then `/dev-harness:lesson` for what it missed.
 - **Still not verified anywhere:** a real interactive `discover`; native Windows; `designer` on a rendered screenshot; the `showcase` README `Edit` path with a real "yes".
+
+## Checkpoint v1.2.0 — 2026-11-11
+
+### Done
+- `scripts/forge.sh` (`check`, `install`, `use`, `status`, `list`, `promote`) and the part spec `skills/forge/part-spec.md`; registry `docs/parts.md` in the memory part, routed from the template `CLAUDE.md` and `docs/INDEX.md`.
+- Skills `forge` (may propose; nothing without a yes) and `promote` (user-only); `lesson` suggests forge for a repeated lesson; `discover` notes candidate parts.
+- `guard-bash.sh` asks before `forge.sh install`, `status`, `promote` (the approval gate; no skill pre-approves them, and `check` is not pre-approved either because it runs the part's tests).
+- `explore.sh`: optional, enforced Metric lines `Runs`, `Noise`, `Correctness`, `Evidence`; `SPREAD=`; `--file`, `--template`.
+- `plugins/dev-harness-perf` 0.1.0 (its own CHANGELOG, `dependencies: ["dev-harness"]`): `perf-loop` skill, `profiler` agent, `perf-guard` hook part, `templates/perf.md`; each part in forge form with a filled spec; `scripts/explore.sh` and `lib.sh` are symlinks to dev-harness.
+- `validate.sh`: per-plugin CHANGELOG, symlinks must resolve inside the marketplace; `docs-test.sh` counts to eighteen.
+- Docs: brief section 17, how-it-works rows and limits, reference (forge, promote, the perf pack), stability (the part spec is now frozen), getting-started walkthrough 5, contributing (new suites, adding a plugin), README (fourteen skills, perf section). Example `examples/14-forge-and-perf.md`.
+
+### Verified
+- `tests/run-all.sh` (full) on the final tree: validate 106, docs 86, explore 106, lens 44, goal 60, showcase 131, tasks 118, forge 77, perf 24, scaffold 278 (the project hook tests run in every scaffold: 305 per scaffold). PASSED: all suites.
+- `test-hooks.sh` (bash 3.2) 305; `claude plugin validate .` and `--strict` plus `--profile directory` on both plugins pass; `shellcheck -S warning` clean on every script, including the perf parts and their tests.
+- `forge.sh check` passes on all three perf parts (each one's tests fail with its files emptied).
+- **Mutants**, one at a time in copies, every one failing a suite:
+  - 18 before the review: the emptied-files rule, sections, proven/uses, agent edit tools, no overwrite, the settings registration, status minimum, promote unproven or dirty, the guard ask, Noise, Runs, Correctness, Evidence, perf-guard direction, threshold and mean-vs-median, the per-plugin CHANGELOG
+  - 11 after: the tools allowlist, skill hooks, empty paths, hook extra files, leading-zero timeout, numeric uses, the promote plugin name, the registry check before copying, guard quote stripping, malformed Metric lines, perf-guard HEAD tracking
+  - The settings-registration mutant first did not apply (a regex in the mutation, not the code); rerun correctly, it was caught.
+- **Headless smoke tests** (`claude -p`, both `--plugin-dir`s, throwaway projects):
+  - `forge` with a lesson recorded twice: it proposed a `changelog-with-app` PreToolUse hook with type reasoning, risks and tests, but **could not write** `.claude/forge/` (Claude Code protects `.claude/`; allow rules do not pre-approve it) and stopped without working around it.
+  - The proposed part, written by hand, passed `forge.sh check`; `guard-bash.sh` returned `ask` for its install; `forge.sh install` registered it; it blocked the bad commit; the project's hook tests still passed (295).
+  - `perf-loop`, run 1: the profiler's evidence, then a `keep` refused by Correctness, because the toy project's `unittest` ran 0 tests (exit 5). The loop stopped instead of changing the check.
+  - `perf-loop`, run 2 (fixture fixed): a 5-run baseline (915.7 ms, spread 5.02%, Noise 6%), profiler evidence, then one variant kept through `explore.sh` with `--evidence` (0.44 ms). A second variant was not run: the profiler subagent's own timing commands were refused in the headless run.
+
+### Not verified
+- **`forge` building and installing a part in a live interactive session.** Headless runs cannot write `.claude/forge/`, and a `bypassPermissions` run was refused by this environment's safety classifier (correctly). Manual checklist:
+  1. In a project with dev-harness guardrails, record the same lesson twice.
+  2. Run `/dev-harness:forge`; expect a proposal and a question, nothing written.
+  3. Answer yes; expect prompts for writes under `.claude/forge/` and for `forge.sh check`.
+  4. Expect `forge.sh check` to pass, then the install to ask twice (Claude's question, then the `guard-bash.sh` prompt).
+  5. Expect `.claude/settings.json` and `docs/parts.md` to be updated, and the hook to block the mistake.
+- **`promote` end to end** (covered by `forge-test.sh` in a temp clone up to the branch; the generalizing, the clone's suite, the commit and the PR question were not run by a model).
+- **The perf plugin installed from GitHub**: whether the symlinked `explore.sh` and `lib.sh` arrive in the cache (the docs say they are copied; verified only after a push). A local-folder marketplace skips them (documented).
+- **`perf-guard` in a live session** (unit tests only, 18 cases).
+- Everything listed as not verified for 1.0.0 and 1.1.0 still is.
+
+### Skeptic review
+A fresh-context `dev-harness:skeptic` (headless, `--plugin-dir`) reviewed `git diff main..build/v1.2.0` at `72b0035`. Verdict: CHANGES REQUESTED, 11 issues (7 medium, 4 low). It probed with real commands in temp dirs. Each issue it reproduced was turned into a failing test here first (14 forge cases, 8 guard cases, 4 explore cases, 2 perf-guard cases), then fixed; see the CHANGELOG "Fixed before release".
+- **Documented, not fixed:**
+  - the emptied-files rule cannot tell a real test from one that only checks a file is not empty;
+  - the guard ask is best-effort;
+  - evidence files are checked for existence, not content;
+  - Correctness artifacts are committed unless ignored;
+  - a best value of 0 disables Noise;
+  - a symlinked `.claude/hooks/` or `settings.json` would be followed by install (not probed).
+- It did not run the scaffold suite or shellcheck; both ran here.
+
+### Next
+- Ask the user before pushing `main`, `v1.2.0` and `dev-harness-perf-v0.1.0`. After the push: CI on Ubuntu and macOS, and an install of both plugins from GitHub in an isolated config (check that `scripts/explore.sh` in the perf cache is a real file).
+- The manual forge checklist above, in a real session.
 
 ## Checkpoint v1.1.0 — 2026-11-11
 

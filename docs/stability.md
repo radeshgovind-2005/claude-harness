@@ -8,20 +8,21 @@ The plugin version lives in one place, `plugins/dev-harness/.claude-plugin/plugi
 
 | Surface | What is frozen |
 |---|---|
-| Skill names and arguments | `help`, `discover`, `new`, `add`, `lesson`, `explore`, `lens`, `goal`, `showcase`, `split`, `handoff`, `resume`. Their argument forms in `reference.md` (for example `add <part>` with the parts `guardrails`, `reviewer`, `lessons`, `memory`, `workflows`, `rules`, `tasks`, `all`). New skills and new optional arguments may be added |
+| Skill names and arguments | `help`, `discover`, `new`, `add`, `lesson`, `explore`, `lens`, `goal`, `showcase`, `split`, `handoff`, `resume`, `forge`, `promote`. Their argument forms in `reference.md` (for example `add <part>` with the parts `guardrails`, `reviewer`, `lessons`, `memory`, `workflows`, `rules`, `tasks`, `all`). New skills and new optional arguments may be added |
 | Agent names | `skeptic`, `lens-reviewer`, `architect`, `designer`, `tester`, called as `dev-harness:<name>` |
 | Agent output formats | The first line of each report (`STATUS: ...`, or `ANGLE: ...` for `lens-reviewer`) and the section names in `reference.md`. A new optional section may be added; none is renamed or removed |
 | Project configuration | `.claude/hooks/harness.conf` keys `PROFILE`, `BLOCK_MAIN`, `VERIFY_CMD`, and their meaning. The three profiles `prototype`, `product`, `assignment` |
 | `scaffold.sh` | Its phases (`files`, `guardrails`), flags (`--profile`, `--part`, `--verify-cmd`, `--merge-settings`, `--dry-run`) and the status words in its output (`add`, `skip`, `merge`, `update`, `ok`, `note`, `FAIL`). It never overwrites a file |
-| What lands in a project | `CLAUDE.md` (a router under 100 lines), `docs/INDEX.md`, `architecture.md`, `conventions.md`, `workflow.md`, `lessons.md`, `progress.md`, `experiments.md`, `docs/agents/`, `docs/audits/`, `docs/tasks/` (`_template.md`, `INDEX.md` and the card format: the frontmatter keys `id`, `title`, `status`, `owner`, `depends`, `scope` and the status values), `.claude/hooks/*.sh`, `.claude/settings.json`, `.claude/rules/`, the `dev-harness-hooks` CI workflow. `docs/intent.md` is written by `discover`, not by `scaffold.sh`, and its template and `status:` values (`discovering`, `decided`) are frozen too |
-| `explore` log | The `docs/experiments.md` Metric lines (`Name`, `Measured by`, `Direction`, `Target`) and the log table columns |
+| What lands in a project | `CLAUDE.md` (a router under 100 lines), `docs/INDEX.md`, `architecture.md`, `conventions.md`, `workflow.md`, `lessons.md`, `progress.md`, `experiments.md`, `docs/agents/`, `docs/audits/`, `docs/parts.md`, `docs/tasks/` (`_template.md`, `INDEX.md` and the card format: the frontmatter keys `id`, `title`, `status`, `owner`, `depends`, `scope` and the status values), `.claude/hooks/*.sh`, `.claude/settings.json`, `.claude/rules/`, the `dev-harness-hooks` CI workflow. `docs/intent.md` is written by `discover`, not by `scaffold.sh`, and its template and `status:` values (`discovering`, `decided`) are frozen too |
+| `explore` log | The `docs/experiments.md` Metric lines (`Name`, `Measured by`, `Direction`, `Target`, and the optional `Runs`, `Noise`, `Correctness`, `Evidence`) and the log table columns |
+| Part spec (`forge`) | A part is a folder `spec.md`, `files/`, `tests/*.sh`. The frontmatter keys `name`, `type` (`hook`, `skill`, `agent`, `rule`), `status` (`experimental`, `proven`), `uses`, and for hooks `event`, `matcher`, `timeout`; the section names in `skills/forge/part-spec.md`; where `forge.sh install` puts each type; `proven` needs 3 uses |
 | Safety stance | The plugin ships no always-on hooks. Strict hooks are copied into a project only when the user opts in. A skill that registers a hook for its session (`discover`, `goal`) keeps it state-gated. Agents have no edit tools |
 
 ## Not frozen
 
 - The wording of skill and agent prompts, help text and messages.
 - The `guard-bash.sh` list of commands it blocks or asks about. It is best-effort and will grow. A command that was blocked may stay blocked; one that was allowed may start to ask.
-- The internal scripts' options other than those above (`explore.sh`, `goal.sh`, `ax-check.sh`, `showcase-facts.sh`, `tasks.sh`, `lib.sh`), the `goal` state file, and the `FACT` and `PASS/WARN/FAIL` line texts.
+- The internal scripts' options other than those above (`explore.sh`, `goal.sh`, `ax-check.sh`, `showcase-facts.sh`, `tasks.sh`, `forge.sh`, `lib.sh`), the `goal` state file, and the `FACT` and `PASS/WARN/FAIL` line texts.
 - Test counts, CI layout, and the contents of `examples/`.
 
 ## What counts as breaking

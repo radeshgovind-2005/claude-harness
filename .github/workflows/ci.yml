@@ -44,5 +44,9 @@ jobs:
         run: /bin/bash tests/showcase-test.sh
       - name: tasks (task cards, overlap, worktrees)
         run: /bin/bash tests/tasks-test.sh
+      - name: forge (part spec bar, install, promote)
+        run: /bin/bash tests/forge-test.sh
+      - name: perf (dev-harness-perf parts, explore through the link)
+        run: /bin/bash tests/perf-test.sh
       - name: docs, examples, line endings, icon
         run: /bin/bash tests/docs-test.sh

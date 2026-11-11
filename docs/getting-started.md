@@ -77,6 +77,16 @@ One session per card:
 
 It loads only what that card needs and makes it the active card. Work on it; before you stop, run `/dev-harness:handoff` (Claude may run it itself). It writes the decisions, status, what is verified and the next step into the card and says it is safe to `/clear`. In the next session the card comes back on its own: a SessionStart hook puts it in Claude's context. For two cards at once, ask `split` for a worktree per card (`tasks.sh worktree <id>`), and open one Claude session in each.
 
+## Walkthrough 5: the harness grows with the project (forge)
+
+When the same correction comes back, `/dev-harness:lesson` suggests turning it into a part:
+
+```
+/dev-harness:forge we keep committing without updating CHANGELOG.md
+```
+
+`forge` picks the type (a rule that must never break is a hook; a repeatable procedure a skill; an independent review an agent; facts for one folder a path-scoped rule; a one-time task nothing), proposes it in a few lines and waits for your yes. Then it writes the part in `.claude/forge/<name>/`: a spec with every field filled, the files, and tests. A script refuses the part unless the tests pass and at least one of them fails when the part is removed. Installing it asks you again. After three real uses (`forge.sh use <name>`) you can mark it proven and send it back to the marketplace with `/dev-harness:promote`.
+
 ## Day to day
 
 | You want to | Run |

@@ -1,0 +1,1 @@
+../../../../../dev-harness/templates/project/.claude/hooks/harness-conf.sh

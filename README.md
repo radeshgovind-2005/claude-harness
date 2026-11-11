@@ -2,7 +2,7 @@
 
 A Claude Code plugin marketplace with one plugin, **dev-harness**. It sets up and runs software projects the way experienced Claude Code users do: it works out who the work is for before anything is built, gives the project memory and guardrails that fit the kind of work (a prototype, a product or an assignment), has fresh-context reviewers check changes, and turns every correction into a lesson so the mistake does not come back.
 
-> **Status: v1.1.0.** Twelve skills and five agents. From 1.0.0 the user-facing surface is stable: see [docs/stability.md](docs/stability.md). Works on macOS and Linux; Windows is not tested.
+> **Status: v1.2.0.** Fourteen skills and five agents, plus the `dev-harness-perf` pack. From 1.0.0 the user-facing surface is stable: see [docs/stability.md](docs/stability.md). Works on macOS and Linux; Windows is not tested.
 
 ## Install
 
@@ -67,6 +67,8 @@ The hooks catch common mistakes, not a determined bypass, and the command list i
 | `split` | break a goal into task cards with a real check, a scope and dependencies. A script fails when two cards that could run at once would touch the same files |
 | `handoff` | write decisions, status, what is verified and the next step into the active card, then `/clear` safely |
 | `resume <id>` | start a session on one card with a small context: only the files that card needs |
+| `forge` | grow the harness: propose a new hook, skill, agent or folder rule when a gap keeps coming back. A script refuses it unless every spec field is filled and its tests pass and fail without it; installing asks you |
+| `promote <part>` | send a part that proved itself (3 real uses) back to the marketplace on a `promote/<part>` branch, with its tests. A pull request only after your yes |
 | `help` | this list, with the installed version |
 
 Five agents, each with one question (call them as `dev-harness:<name>`). Pick the one whose question it is:
@@ -80,6 +82,23 @@ Five agents, each with one question (call them as `dev-harness:<name>`). Pick th
 | `tester` | Would the tests catch a break? | mutants made in a temporary copy |
 
 Every skill and agent in detail: [docs/reference.md](docs/reference.md). Real output from most of them, captured on toy projects: [examples/](examples/README.md).
+
+
+## dev-harness-perf: performance as an experiment
+
+A second plugin in this marketplace, and the worked example for `forge`: each of its parts ships with a filled part spec and tests that `forge.sh check` accepts.
+
+```
+/plugin install dev-harness-perf@claude-harness
+```
+
+| Part | What it does |
+|---|---|
+| `perf-loop` | `/dev-harness-perf:perf-loop`: a baseline of 5+ runs with a noise threshold, profiler evidence, one change at a time, kept only if it beats the noise and the tests still pass |
+| `profiler` | an agent that names the top hotspots, each with evidence |
+| `perf-guard` | a Stop hook, installed per project with `/dev-harness:forge`, that blocks a stop when the benchmark regresses past your threshold |
+
+See [plugins/dev-harness-perf/README.md](plugins/dev-harness-perf/README.md).
 
 ## Honest limits
 

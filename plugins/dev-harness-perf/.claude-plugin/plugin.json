@@ -1,0 +1,14 @@
+{
+  "name": "dev-harness-perf",
+  "version": "0.1.0",
+  "description": "Performance work done like an experiment: a repeated-run baseline with a noise threshold, profiler evidence before every change, one change at a time, kept only if it beats the noise and the tests still pass. Adds a perf-guard Stop hook through dev-harness forge.",
+  "author": {
+    "name": "Radesh Govind",
+    "url": "https://github.com/radeshgovind-2005"
+  },
+  "homepage": "https://github.com/radeshgovind-2005/claude-harness",
+  "repository": "https://github.com/radeshgovind-2005/claude-harness",
+  "license": "MIT",
+  "keywords": ["performance", "benchmark", "profiling", "experiment"],
+  "dependencies": ["dev-harness"]
+}

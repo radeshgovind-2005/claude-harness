@@ -12,7 +12,25 @@
       "source": "./plugins/dev-harness",
       "description": "Set up and run any project the way experienced Claude Code users do: discover intent first, scaffold memory and guardrails per profile, review with a fresh-context skeptic, and turn mistakes into lessons.",
       "category": "development",
-      "tags": ["workflow", "guardrails", "memory", "review", "scaffolding"]
+      "tags": [
+        "workflow",
+        "guardrails",
+        "memory",
+        "review",
+        "scaffolding"
+      ]
+    },
+    {
+      "name": "dev-harness-perf",
+      "source": "./plugins/dev-harness-perf",
+      "description": "Performance work done like an experiment: repeated-run baseline with a noise threshold, profiler evidence before every change, one change at a time, kept only if it beats the noise and the tests still pass. Needs dev-harness.",
+      "category": "development",
+      "tags": [
+        "performance",
+        "benchmark",
+        "profiling",
+        "experiment"
+      ]
     }
   ]
 }

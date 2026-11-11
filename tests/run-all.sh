@@ -40,6 +40,8 @@ run lens     tests/lens-test.sh
 run goal     tests/goal-test.sh
 run showcase tests/showcase-test.sh
 run tasks    tests/tasks-test.sh
+run forge    tests/forge-test.sh
+run perf     tests/perf-test.sh
 if [ "$FAST" = 1 ]; then run scaffold tests/scaffold-test.sh "skipped by --fast: the scaffold and project hook tests did NOT run"
 else run scaffold tests/scaffold-test.sh; fi
 

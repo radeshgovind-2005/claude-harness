@@ -48,6 +48,7 @@ Read the file for your task before you start. Do not read all files.
 | Trying variants against a metric      | `docs/experiments.md`       |
 | Picking up, splitting or handing off  | `docs/tasks/INDEX.md`       |
 | Subagents, parallel or wide work      | `docs/agents/INDEX.md`      |
+| A new hook, skill, agent or rule      | `docs/parts.md`             |
 | Not sure                              | `docs/INDEX.md`             |
 
 Folder-specific rules load automatically from `.claude/rules/`.

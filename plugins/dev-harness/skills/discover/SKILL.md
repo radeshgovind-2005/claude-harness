@@ -42,7 +42,7 @@ Copy `${CLAUDE_PLUGIN_ROOT}/skills/discover/intent-template.md` to `docs/intent.
 
 ## 3. Brainstorm
 
-Propose 2–3 directions. For each: one-line pitch, what it optimizes for, main cost or risk, and what the receiver would notice. Exactly one is **bold**: more ambitious than the brief asks, still feasible, with the risk named. Recommend one and say why.
+Propose 2–3 directions. For each: one-line pitch, what it optimizes for, main cost or risk, and what the receiver would notice. Exactly one is **bold**: more ambitious than the brief asks, still feasible, with the risk named. Recommend one and say why. If a need will recur in this project (a rule that must hold, a repeated check, a review), note it as a candidate part for `/dev-harness:forge` after the decision; do not build it during discovery.
 
 ## 4. Decide
 
