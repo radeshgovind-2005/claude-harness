@@ -29,7 +29,10 @@ setfm() { # file key value
 echo "Glob intersection (both orders)"
 for pair in 'src/**|src/a/b.ts' 'src/**|src' '**/test_*.py|tests/test_a.py' 'src/*.ts|src/a?.ts' 'src/a?.ts|src/ab.ts' 'src/*|src/*.md' \
             'src/api|src/api/client.ts' 'src/{a,b}/x.ts|src/c/x.ts' 'src/[ab]/x|src/z/x' 'docs/tasks/|docs/tasks/001-a.md' \
-            './src/a.ts|src/a.ts' 'src/v1.0/|src/v1.0/a.ts' 'a/**/z.ts|a/b/c/z.ts' '**|anything/at/all'; do
+            './src/a.ts|src/a.ts' 'src/v1.0/|src/v1.0/a.ts' 'a/**/z.ts|a/b/c/z.ts' '**|anything/at/all' \
+            './|src/a.ts' '/|src/a.ts' '.|src/a.ts' '.github|.github/workflows/ci.yml' '.claude|.claude/rules/x.md' \
+            'src/{a,{b,c}}/x.ts|src/b/x.ts' 'src/[a,b].ts|src/a.ts' '"src/**"|src/a.ts' "'src/**'|src/a.ts" \
+            'src//api/**|src/api/x.ts' 'SRC/Api/**|src/api/x.ts' 'src/./api/**|src/api/x.ts'; do
   a=${pair%%|*}; b=${pair##*|}
   meets "$a" "$b"; check "'$a' meets '$b'" $?
   meets "$b" "$a"; check "'$b' meets '$a'" $?
@@ -81,6 +84,19 @@ proj; t new "x" --scope 'a/**' >/dev/null 2>&1
 out=$(t check 2>&1); [ $? -ne 0 ] && grep -q 'section:Goal' <<<"$out" && grep -q 'section:Done when' <<<"$out"; check "an empty Goal or Done when fails check" $?
 proj; card a 'a/**'; printf '\nList<String> is fine in a goal\n' >> "$D/docs/tasks/001-a.md"
 t check >/dev/null 2>&1; check "angle brackets inside text are not a placeholder" $?
+proj; mkdir -p "$D/src/v1.0"; card a 'src/v1.0'; card b 'src/v1.0/a.ts'
+! t overlap >/dev/null 2>&1; check "a literal that is an existing folder (src/v1.0) covers what is below it" $?
+proj; card a '../outside/**'
+out=$(t check 2>&1); [ $? -ne 0 ] && grep -q "card 001-a.*scope" <<<"$out"; check "a scope that leaves the project (..) fails check" $?
+proj; card a 'src/[ab.ts'
+out=$(t check 2>&1); [ $? -ne 0 ] && grep -q "card 001-a.*scope" <<<"$out"; check "an unmatched [ in a scope fails check" $?
+proj; card a 'src/{a,b.ts'
+! t check >/dev/null 2>&1; check "an unmatched { in a scope fails check" $?
+proj; t new "Support List<T> generics" --scope 'src/**' --goal "<div> renders the list" --done-when "true" --read-first "a, b, c" --next "n" >/dev/null 2>&1
+t check >/dev/null 2>&1; check "a title or goal that contains <...> in real text is not a placeholder" $?
+proj; card a 'a/**'; card b 'b/**'
+sed 's/^id: 002-b$/id: 001-c/' "$D/docs/tasks/002-b.md" > "$D/docs/tasks/001-c.md"; rm "$D/docs/tasks/002-b.md"; t index >/dev/null 2>&1
+out=$(t check 2>&1); [ $? -ne 0 ] && grep -q 'number 001' <<<"$out"; check "two cards with the same number (merged from two worktrees) fail check" $?
 proj; ! t new "no scope" --goal g >/dev/null 2>&1; check "new without --scope fails" $?
 cp "$TPL/INDEX.md" "$D/docs/tasks/INDEX.md"; printf '# x\n' > "$D/docs/tasks/INDEX.md"
 ! t index >/dev/null 2>&1; check "index refuses an INDEX.md without markers" $?

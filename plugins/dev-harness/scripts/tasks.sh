@@ -15,11 +15,13 @@
 #                                  in-progress and active there
 #
 # A card is docs/tasks/NNN-slug.md with frontmatter id, title, status (open|in-progress|blocked|done),
-# owner, depends (ids, comma-separated) and scope (globs, comma-separated: * ? and ** work; [..] and
-# {..} are treated as *, so overlap can over-report but never misses one). An entry without a wildcard
-# whose last segment has no dot is read as a folder and covers everything below it (src/api means
-# src/api and src/api/**; src/a.ts is just the file). A folder with a dot in its name must end in /
-# or /** (src/v1.0/), or what is below it is not covered. Commas inside {..} do not split the scope.
+# owner, depends (ids, comma-separated) and scope (globs, comma-separated: * ? and ** work). Overlap only
+# ever widens a pattern, so it can over-report: [..] and {..} count as *, case is
+# ignored, quotes, "//" and "." segments are dropped, and ".", "./" or "/" mean the whole project. A literal
+# entry is a folder (covering everything below it) when its last segment has no dot (src/api), starts with
+# a dot and has no other (.github), or names a folder that exists; otherwise it is a file (src/a.ts). The one
+# way overlap misses: a folder that does not exist yet and has a dot in its name. Write it as src/v2.0/.
+# check fails on a scope with ".." or unmatched {..} or [..], and on two cards with the same number.
 # <id> may be the full id (003-login-form) or its number (003).
 # Output: PASS|WARN|FAIL lines, then SUMMARY. Exit 1 on any FAIL.
 
@@ -85,14 +87,34 @@ write_index() {
 # overlap_check [ONLY_ID]: one line per not-done card into awk, which checks dependency paths (and cycles)
 # and intersects the scope globs. With ONLY_ID, only pairs that include that card are checked.
 overlap_check() {
-  local only="${1:-}" c
+  local only="${1:-}" c e dirs="" parts
+  # Literal scope entries that are folders in the project (src/v1.0): they cover what is below them.
+  while IFS= read -r c; do
+    IFS=',' read -ra parts <<<"$(fm "$c" scope)"
+    for e in "${parts[@]}"; do
+      e="${e#"${e%%[![:space:]]*}"}"; e="${e%"${e##*[![:space:]]}"}"; e="${e#[\"\']}"; e="${e%[\"\']}"
+      case "$e" in ''|*[*?{}]*|*'['*) continue ;; esac
+      [ -d "$ROOT/$e" ] && dirs="$dirs$e"$'\n'
+    done
+  done < <(cards)
   while IFS= read -r c; do
     printf '%s\t%s\t%s\t%s\n' "$(fm "$c" id)" "$(fm "$c" status)" "$(fm "$c" depends)" "$(fm "$c" scope)"
-  done < <(cards) | awk -F'\t' -v only="$only" '
+  done < <(cards) | TASKS_DIRS="$dirs" awk -F'\t' -v only="$only" '
     function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
-    # norm: ./ and leading / dropped; [..] and {..} become *; a trailing / means everything below.
-    function norm(g) { g = trim(g); sub(/^\.\//, "", g); sub(/^\/+/, "", g)
-      gsub(/\[[^]]*\]/, "*", g); gsub(/\{[^}]*\}/, "*", g); sub(/\/$/, "/**", g); return g }
+    # norm: lower case (case-insensitive file systems: only adds overlaps); one pair of surrounding quotes
+    # removed; empty and "." segments and "//" dropped; "", ".", "./" and "/" mean the whole project (**);
+    # a trailing / means everything below; {..} and [..] become * ({..} with a / in it becomes ** from
+    # there on); an unmatched { [ ] } becomes *. Every step can only widen a pattern, never narrow it.
+    function norm(g,    n, i, S, out, trail, q, p) { g = tolower(trim(g)); q = "\047"
+      if ((g ~ /^".*"$/ || substr(g, 1, 1) == q && substr(g, length(g), 1) == q) && length(g) >= 2) g = substr(g, 2, length(g) - 2)
+      trail = (g ~ /\/$/); n = split(g, S, "/"); out = ""
+      for (i = 1; i <= n; i++) if (S[i] != "" && S[i] != ".") out = out (out == "" ? "" : "/") S[i]
+      if (out == "") return "**"
+      if (trail) out = out "/**"
+      if (out ~ /\{[^}]*\/[^}]*\}/) { p = substr(out, 1, index(out, "{") - 1); sub(/[^\/]*$/, "", p); out = p "**" }
+      while (out ~ /\{[^{}]*\}/) gsub(/\{[^{}]*\}/, "*", out)
+      gsub(/\[[^]]*\]/, "*", out); gsub(/[][{}]/, "*", out)
+      return out }
     # seg(p, q): is there a string that matches both single-segment patterns (* and ?)?
     function seg(p, q,    k, r, a, b) {
       k = p SUBSEP q; if (k in SM) return SM[k]
@@ -113,14 +135,17 @@ overlap_check() {
       else if (i > na || j > nb) r = 0
       else r = seg(A[i], B[j]) && path(i + 1, j + 1)
       PM[k] = r; return r }
-    # splitg(s, out): split a scope on commas that are not inside {...}.
-    function splitg(s, out,    n, i, ch, depth, cur) { n = 0; depth = 0; cur = ""
+    # splitg(s, out): split a scope on commas that are not inside {..} or [..].
+    function splitg(s, out,    n, i, ch, depth, br, cur) { n = 0; depth = 0; br = 0; cur = ""
       for (i = 1; i <= length(s); i++) { ch = substr(s, i, 1)
-        if (ch == "{") depth++; else if (ch == "}" && depth > 0) depth--
-        if (ch == "," && depth == 0) { out[++n] = cur; cur = "" } else cur = cur ch }
+        if (ch == "[") br = 1; else if (ch == "]") br = 0
+        else if (ch == "{") depth++; else if (ch == "}" && depth > 0) depth--
+        if (ch == "," && depth == 0 && !br) { out[++n] = cur; cur = "" } else cur = cur ch }
       out[++n] = cur; return n }
-    # dirlike(g): a literal entry whose last segment has no dot is read as a folder (src/api covers src/api/**).
-    function dirlike(g,    s) { if (g ~ /[*?]/) return 0; s = g; sub(/.*\//, "", s); return s !~ /\./ }
+    # dirlike(g): a literal entry read as a folder, which also covers everything below it: its last segment
+    # has no dot (src/api), or starts with a dot and has no other (.github), or it is a folder in the project.
+    function dirlike(g,    s) { if (g ~ /[*?]/) return 0; s = g; sub(/.*\//, "", s)
+      return (s !~ /\./) || (s ~ /^\.[^.]+$/) || (g in ISDIR) }
     function globs_meet(x, y) { split("", PM); na = split(x, A, "/"); nb = split(y, B, "/"); return path(1, 1) }
     # reach(a, b): is there a dependency path from a to b?
     function reach(a, b,    n, i, L, d) {
@@ -129,6 +154,7 @@ overlap_check() {
       RM[a SUBSEP b] = 0; n = split(DEP[a], L, ",")
       for (i = 1; i <= n; i++) { d = trim(L[i]); if (d != "" && reach(d, b)) { RM[a SUBSEP b] = 1; return 1 } }
       return 0 }
+    BEGIN { nd = split(ENVIRON["TASKS_DIRS"], DL, "\n"); for (i = 1; i <= nd; i++) if (DL[i] != "") ISDIR[norm(DL[i])] = 1 }
     { id[NR] = $1; st[$1] = $2; DEP[$1] = $3; SC[$1] = $4; n = NR; known[$1] = 1 }
     END {
       bad = 0
@@ -146,8 +172,8 @@ overlap_check() {
         split("", RM); if (reach(a, b) || reach(b, a)) continue
         na2 = splitg(SC[a], GA); nb2 = splitg(SC[b], GB); hit = ""
         for (x = 1; x <= na2 && hit == ""; x++) for (y = 1; y <= nb2 && hit == ""; y++) {
-          ga = norm(GA[x]); gb = norm(GB[y]); if (ga == "" || gb == "") continue
-          # a literal entry also covers what is below it
+          ga = norm(GA[x]); gb = norm(GB[y])
+          # a literal folder entry also covers what is below it
           if (globs_meet(ga, gb) || (dirlike(ga) && globs_meet(ga "/**", gb)) || (dirlike(gb) && globs_meet(ga, gb "/**")))
             hit = ga " vs " gb }
         if (hit != "") { print "FAIL\toverlap\t" a " and " b " overlap (" hit ") with no dependency between them: they are not parallel. Add one to the other'"'"'s depends, or narrow a scope"; bad++ } }
@@ -202,10 +228,16 @@ case "$cmd" in
     while IFS= read -r c; do
       n=$((n+1)); stem=$(basename "$c" .md); bad=""
       [ "$(fm "$c" id)" = "$stem" ] || bad="$bad id-does-not-match-file-name"
-      for k in title owner scope; do v=$(fm "$c" "$k"); { [ -z "$v" ] || [[ "$v" == *"<"*">"* ]]; } && bad="$bad $k"; done
+      # A placeholder is a whole value in <...> (the template's), not text that happens to contain <T>.
+      for k in title owner scope; do v=$(fm "$c" "$k"); { [ -z "$v" ] || [[ "$v" == "<"*">" ]]; } && bad="$bad $k"; done
+      sc=$(fm "$c" scope)
+      # A scope must stay in the project and have balanced {..} and [..]; otherwise overlap cannot read it.
+      if grep -Eq '(^|[/,[:space:]])\.\.(/|,|[[:space:]]|$)' <<<"$sc"; then bad="$bad scope(..)"; fi
+      if [ "$(tr -cd '{' <<<"$sc" | wc -c)" != "$(tr -cd '}' <<<"$sc" | wc -c)" ] \
+         || [ "$(tr -cd '[' <<<"$sc" | wc -c)" != "$(tr -cd ']' <<<"$sc" | wc -c)" ]; then bad="$bad scope(unmatched-{-or-[)"; fi
       case "$(fm "$c" status)" in open|in-progress|blocked|done) ;; *) bad="$bad status(open|in-progress|blocked|done)" ;; esac
       for s in "Goal" "Done when" "Read first" "Next"; do
-        body=$(section "$c" "$s"); { [ -z "$body" ] || grep -Eq '^[-[:space:]]*<[^>]*>' <<<"$body"; } && bad="$bad section:$s"
+        body=$(section "$c" "$s"); { [ -z "$body" ] || grep -Eq '^[-[:space:]]*<[^<>]*>[[:space:]]*$' <<<"$body"; } && bad="$bad section:$s"
       done
       if [ -n "$bad" ]; then say FAIL "card $stem" "missing or placeholder:$bad"
       else
@@ -215,6 +247,10 @@ case "$cmd" in
       fi
     done < <(cards)
     [ $n -gt 0 ] || say WARN "cards" "no cards yet (make them with /dev-harness:split or tasks.sh new)"
+    # Two cards with the same number (made in two worktrees, then merged) make the number ambiguous.
+    dup=$(cards | sed -E 's|.*/([0-9]{3})-.*|\1|' | LC_ALL=C sort | uniq -d | tr '\n' ' ')
+    if [ -n "$dup" ]; then say FAIL "numbers" "more than one card has the number $dup: renumber one (rename the file and its id) and update depends"
+    elif [ $n -gt 0 ]; then say PASS "numbers" "every card number is unique"; fi
     if [ ! -f "$TD/INDEX.md" ]; then say FAIL "INDEX.md" "docs/tasks/INDEX.md is missing"
     elif ! grep -q '<!-- tasks:index:start -->' "$TD/INDEX.md"; then say FAIL "INDEX.md" "no tasks:index markers"
     elif [ "$(index_block)" = "$(index_rows)" ]; then say PASS "INDEX.md" "matches the $n card(s)"
@@ -262,7 +298,7 @@ case "$cmd" in
       [ "$(fm "$TD/$d.md" status 2>/dev/null)" = "done" ] || die "$id depends on $d, which is not done: they are not parallel. Finish $d first."
     done
     ov=$(overlap_check "$id" | grep '^FAIL')
-    [ -z "$ov" ] || { printf '%s\n' "$ov" | sed 's/^FAIL\t[a-z]*\t/FAIL    /' >&2; die "$id is not parallel with the cards above"; }
+    [ -z "$ov" ] || { printf '%s\n' "$ov" | awk -F'\t' '{print "FAIL    " $3}' >&2; die "$id is not parallel with the cards above"; }
     branch="task/$id"; top=$(git -C "$ROOT" rev-parse --show-toplevel)
     path="$(dirname "$top")/$(basename "$top")-$id"
     git -C "$ROOT" show-ref --verify -q "refs/heads/$branch" && die "branch $branch already exists"

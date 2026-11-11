@@ -14,6 +14,13 @@ Stateful, parallel work. State lives in task cards in `docs/tasks/`, not in the 
 - **Part `tasks`** (`add tasks`, and in `new`): `docs/tasks/_template.md`, `docs/tasks/INDEX.md`, `.gitignore += .claude/active-task`. The template `CLAUDE.md` routes to it and says to hand off before stopping; `docs/INDEX.md` and `docs/workflow.md` say how cards work.
 - **Project hooks, all profiles:** `task-context.sh` (SessionStart: the active card and the newest 5 lessons, capped at 9,000 characters) and `task-compact.sh` (PreCompact: its stdout tells the compaction to keep the card's id, goal, decisions and status; it appends a timestamped "compacted" note with a git status snapshot to the card; it always exits 0, because exit 2 would block compaction). Both do nothing without an active card and need no `jq`.
 - `validate.sh`: the three profiles must register the same hooks, and every project hook must be registered.
+
+### Fixed before release (fresh-context skeptic review, each reproduced as a failing test first)
+- `overlap` missed real overlaps for: a whole-project scope written `.`, `./` or `/`; dot folders such as `.github` or `.claude`; nested braces (`src/{a,{b,c}}`); a comma inside `[..]`; quoted entries; `//` and `.` segments; and a different letter case (macOS and Windows file systems ignore case). All now widen to a match; a literal that names an existing folder covers what is below it.
+- `check` now fails on a scope with `..` or an unmatched `{` or `[`, and on two cards with the same number (two worktrees that each ran `new`, then merged).
+- `check` flagged real text such as `List<T>` or `<div> renders` as a placeholder; only a whole value or line in `<...>` counts now.
+- The PreCompact note goes at the end of the card's `## Log` section, even when another section follows it.
+- A chained or variable-based call (`T="bash .../tasks.sh"; $T new ...`) missed the skills' pre-approval in a headless run; the three skills now say to run one written-out `tasks.sh` call per command (the rerun had no permission denial).
 - Suite `tests/tasks-test.sh` in `run-all.sh` and CI; hook cases in `test-hooks.sh`.
 
 ### Not added (after checking the docs)

@@ -356,6 +356,14 @@ check "a read-only card: PreCompact still exits 0" 0 "$rc"
 grep -q 'could not append' <<<"$out"; check "... and says the note was not written" 0 $?
 check "garbage input: PreCompact exits 0 (exit 2 would block compaction)" 0 "$(echo 'not json' | CLAUDE_PROJECT_DIR="$K" "$H/task-compact.sh" >/dev/null 2>&1; echo $?)"
 check "garbage input: SessionStart exits 0"             0 "$(echo 'not json' | CLAUDE_PROJECT_DIR="$K" "$H/task-context.sh" >/dev/null 2>&1; echo $?)"
+printf -- '---\nid: 001-api\nstatus: open\n---\n\n## Log\n- created\n\n## Notes\nhand-written\n' > "$K/docs/tasks/001-api.md"
+pcmp >/dev/null
+check "the note lands at the end of ## Log, before a section that follows it" "- created|- NOTE||## Notes|hand-written" \
+  "$(sed -n '/^## Log$/,$p' "$K/docs/tasks/001-api.md" | sed '1d' | sed -E 's/^- 20[0-9T:Z-]+ compacted.*/- NOTE/' | grep -v '^  - ' | tr '\n' '|' | sed 's/|$//')"
+printf -- '---\nid: 001-api\nstatus: open\n---\n\n## Goal\nx\n' > "$K/docs/tasks/001-api.md"
+pcmp >/dev/null
+grep -q '^## Log$' "$K/docs/tasks/001-api.md" && [ "$(tail -n 1 "$K/docs/tasks/001-api.md" | cut -c1-4)" != "## L" ]; check "a card without ## Log gets the section and the note" 0 $?
+cp "$T/card.bak" "$K/docs/tasks/001-api.md"
 NG="$T/nogit"; mkdir -p "$NG/docs/tasks" "$NG/.claude"; cp "$T/card.bak" "$NG/docs/tasks/001-api.md"; printf '001-api\n' > "$NG/.claude/active-task"
 echo '{"trigger":"manual"}' | GIT_CEILING_DIRECTORIES="$T" CLAUDE_PROJECT_DIR="$NG" "$H/task-compact.sh" >/dev/null 2>&1
 grep -q 'compacted (manual); git status: not a git repository' "$NG/docs/tasks/001-api.md"; check "outside git: the note says so" 0 $?

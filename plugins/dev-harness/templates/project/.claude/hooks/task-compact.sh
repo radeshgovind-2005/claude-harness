@@ -43,9 +43,17 @@ if snap=$(git -C "$root" status --short 2>/dev/null); then
 else
   note="- $ts compacted (${trigger:-unknown}); git status: not a git repository"
 fi
-{
-  grep -q '^## Log' "$card" || printf '\n## Log\n'
-  [ -n "$(tail -c 1 "$card")" ] && echo
-  printf '%s\n' "$note"
-} >> "$card" 2>/dev/null || echo "(dev-harness could not append the compaction note to docs/tasks/$id.md)"
+# The note goes at the end of the "## Log" section, even when another section follows it; a card without
+# one gets it at the end. The card is rewritten in place (cat >), so a read-only card is left unchanged.
+tmp=$(mktemp "${TMPDIR:-/tmp}/dh-card.XXXXXX" 2>/dev/null) && printf '%s\n' "$note" > "$tmp.note" \
+  && tr -d '\r' < "$card" | awk -v nf="$tmp.note" '
+       function put(  l) { while ((getline l < nf) > 0) print l; done = 1 }
+       /^## / && inlog && !done { put(); print ""; inlog = 0; blank = 0 }
+       $0 == "## Log" { inlog = 1 }
+       inlog && /^[[:space:]]*$/ { blank++; next }
+       { while (blank > 0) { print ""; blank-- } print }
+       END { if (!done) { if (!inlog) print "\n## Log"; put() } }' > "$tmp" \
+  && cat "$tmp" > "$card" 2>/dev/null \
+  || echo "(dev-harness could not append the compaction note to docs/tasks/$id.md)"
+rm -f "$tmp" "$tmp.note" 2>/dev/null
 exit 0
