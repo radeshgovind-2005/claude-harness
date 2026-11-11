@@ -14,6 +14,7 @@ Map of all project docs. Read only the file your task needs.
 | `agents/first-workflow.md` | You run your first dynamic workflow | A safe, scoped, read-only audit |
 | `audits/README.md` | You need a past audit report | Saved workflow and review reports, newest first |
 | `tasks/INDEX.md` | You split, pick up or hand off a piece of work | Task cards: goal, check, scope, decisions, status; which can run in parallel |
+| `parts.md` | You want a new hook, skill, agent or folder rule for this project | The parts the harness grew here, with status and uses; how to propose one |
 
 ## Rules for this folder
 
