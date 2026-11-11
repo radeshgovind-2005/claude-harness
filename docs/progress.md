@@ -6,7 +6,7 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 
 Read this first when resuming. Update it at every checkpoint.
 
-- **Version:** 1.0.2 (audit fixes), merged into `main` and tagged `v1.0.2` locally on 2026-11-11, NOT pushed yet (waiting for the user's yes), so its CI and the GitHub install are NOT VERIFIED. Next milestones: v1.1.0 (task cards), v1.2.0 (forge, promote, perf pack), each planned before building. 1.0.1 is pushed and released on GitHub (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
+- **Version:** 1.0.2 (audit fixes), merged into `main`, tagged `v1.0.2` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43017098908 and 43017097262), and installing from GitHub is verified (see "Verified after the push" in the v1.0.2 checkpoint). No GitHub release was created for it. Next milestones: v1.1.0 (task cards), v1.2.0 (forge, promote, perf pack), each planned before building. 1.0.1 is pushed and released on GitHub (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
 - **Branches:** `main` is the release branch. `build/v0.1.0` to `build/v1.0.0` are the finished milestone branches. The old local branch `fix/ci-git-identity` was deleted on 2026-11-10 (its change was already on `main`, cd69265).
 - **Known quirk:** the `v0.4.0` tag points at `db84e15`, whose CI was red for one test (a missing git identity on runners). The fix is on `main` only; the tag was not moved.
 - **Release routine** (also in `docs/contributing.md`): branch `build/vX.Y.Z`, small commits, all suites (`tests/run-all.sh`), mutation checks, a fresh-context skeptic on `git diff main..build/vX.Y.Z`, CHANGELOG, a checkpoint here, merge, annotated tag, ask before pushing, then watch CI and install from GitHub in an isolated config.
@@ -39,10 +39,16 @@ Read this first when resuming. Update it at every checkpoint.
 - Upgrade: a project with the 1.0.1 hooks keeps them, gets `harness-conf.sh`, still blocks main, and its hook tests pass (scaffold suite).
 
 ### Not verified
-- **The GNU `timeout` branch of `verify.sh` on Linux.** macOS has no `timeout` here, so both loop modes ran the fallback. The 124/137 rule was checked by hand with a fake `timeout` (its mutant prints "TIMED OUT" for a fast `exit 124`); `test-hooks.sh` catches that mutant only where a real `timeout` exists. CI on Ubuntu will run it after a push.
-- **The CI workflow on GitHub Actions.** Only the step's script, extracted from the yml, was run (30 conf variants).
+- **The GNU `timeout` branch of `verify.sh` on Linux** (before the push; now verified by CI, see below). macOS has no `timeout` here, so both loop modes ran the fallback. The 124/137 rule was checked by hand with a fake `timeout` (its mutant prints "TIMED OUT" for a fast `exit 124`); `test-hooks.sh` catches that mutant only where a real `timeout` exists. CI on Ubuntu will run it after a push.
+- **The project CI workflow (`dev-harness-hooks.yml`) on GitHub Actions.** Only the step's script, extracted from the yml, was run (30 conf variants).
 - A live session where `verify.sh` hits the 240 s limit. Covered by unit tests with a 1 s limit.
 - Everything listed as not verified for 1.0.0 still is.
+
+### Verified after the push (2026-11-11)
+- **CI on `ad59f90`** (runs 43017098908 for `main` and 43017097262 for the tag): green on `ubuntu-latest` and `macos-latest`.
+- **The GNU `timeout` branch of `verify.sh`**, NOT VERIFIED before the push: the Ubuntu job ran all ten "timeout command if present" checks of `test-hooks.sh` (`ubuntu-latest` has coreutils `timeout`), including the TERM-ignoring check and the fast `exit 124` case, and passed 251 of 251.
+- **Installing 1.0.2 from GitHub** (isolated `CLAUDE_CONFIG_DIR`): Skills (9), Agents (5), Hooks (0), cache folder `1.0.2`. Scaffolding `guardrails --profile product` from the install cache printed the empty `VERIFY_CMD` note and passed the project hook tests 251 of 251. `harness-conf.sh` is not executable in git (it is only sourced or run with `bash`; `scaffold.sh` sets the bit in projects).
+- Still NOT VERIFIED: the workflow `dev-harness-hooks.yml` running inside a real project repository on GitHub Actions (only its step script was run, by `scaffold-test.sh`).
 
 ### Skeptic review
 A fresh-context `dev-harness:skeptic` (headless, `--plugin-dir`) reviewed `git diff main..build/v1.0.2` at `7e8e8cd`. Verdict: CHANGES REQUESTED, 4 issues (2 medium, 2 low).
@@ -51,7 +57,6 @@ A fresh-context `dev-harness:skeptic` (headless, `--plugin-dir`) reviewed `git d
 - **Its NOT CHECKED:** its own ad-hoc variant experiments (sandbox approvals), the GNU `timeout` branch, and GitHub Actions.
 
 ### Next
-- Ask the user before pushing `main` and `v1.0.2`. After the push: CI on Ubuntu and macOS, and an install from GitHub in an isolated config.
 - Plan v1.1.0 (task cards) and show it before building.
 
 ## Checkpoint v1.0.1 — 2026-11-10
