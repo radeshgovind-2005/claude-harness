@@ -39,7 +39,7 @@ The `dev-harness:skeptic` agent ships with the plugin, so `reviewer` adds only t
 
 3. **Git.** For `guardrails` and `all`: run `git rev-parse --is-inside-work-tree`. If this is not a repo, offer `git init -b main` (ask first). For **product** on `main` or `master`: offer `git switch -c chore/dev-harness-setup` before anything is written. Once the guardrails land, edits on `main` are blocked immediately in this session.
 
-4. **Verify command** (only for `guardrails` and `all`). If `.claude/hooks/harness.conf` exists, leave it. Otherwise follow step 4 of `/dev-harness:new`: look for `package.json` scripts, `pyproject.toml`, `Makefile`, `Cargo.toml`, `go.mod`; propose a fast `VERIFY_CMD` (product = typecheck + lint, assignment = tests, prototype = empty); ask the user to confirm.
+4. **Verify command** (only for `guardrails` and `all`). If `.claude/hooks/harness.conf` exists, leave it. Otherwise follow step 4 of `/dev-harness:new`: look for `package.json` scripts, `pyproject.toml`, `Makefile`, `Cargo.toml`, `go.mod`; propose a fast `VERIFY_CMD` (product = typecheck + lint, assignment = tests, prototype = empty); ask the user to confirm. Pass it with `--verify-cmd`; without the flag `scaffold.sh` falls back to its own detection and reports it as a `note`.
 
 5. **Dry run, then write.** Run the script with `--dry-run` first and show the output. Then run it for real. For `all`, run `files` first and `guardrails` last: hooks take effect as soon as `.claude/settings.json` is written. For `guardrails` and `all`, if `.claude/settings.json` exists the dry run prints a proposed merge; ask before rerunning with `--merge-settings`.
 
