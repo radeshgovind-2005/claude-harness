@@ -26,7 +26,7 @@ Propose in a few lines: the gap (with the real case: the lesson, the misfire, th
 
 ## 2. Build it in staging
 
-On a yes, write the part in `.claude/forge/<name>/` (kebab-case name), and nowhere else:
+On a yes, write the part in `.claude/forge/<name>/` (kebab-case name), and nowhere else. Claude Code treats `.claude/` as a protected folder, so it asks the user before these writes (once per session if they allow edits in `.claude` for the session); that is expected, not an obstacle: never write the part elsewhere and copy it in with a shell command.
 
 - `spec.md` from `${CLAUDE_PLUGIN_ROOT}/skills/forge/part-spec.md`. Fill every section with this project's facts. Status `experimental`, uses `0`.
 - `files/`: what gets installed (one hook script; a `SKILL.md`; an agent `<name>.md` with `tools:` and no edit tool; a rule `<name>.md` with `paths:`).

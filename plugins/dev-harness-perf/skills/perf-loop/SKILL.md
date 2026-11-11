@@ -11,7 +11,7 @@ Run a performance loop. Input from the user: $ARGUMENTS
 
 Bold, but measured. The referee is `bash ${CLAUDE_PLUGIN_ROOT}/scripts/explore.sh --file docs/perf.md <subcommand>` (dev-harness's experiment script, shipped here as a link). It decides keep or revert from numbers; you propose, profile and implement. If the script is missing (a plugin installed from a local folder skips the link), say so and stop: do not measure by hand.
 
-Every call is `bash ${CLAUDE_PLUGIN_ROOT}/scripts/explore.sh --file docs/perf.md ...`, one per Bash call, written out (no variables or chains): the pre-approval matches only that form.
+Every call is `bash ${CLAUDE_PLUGIN_ROOT}/scripts/explore.sh --file docs/perf.md ...`, one per Bash call, written out (no variables or chains): the pre-approval matches only that form. Claude Code's pre-approval lasts only for the turn that started this skill; after the user's next message (or a long step), `explore.sh` calls ask again. A refused call is a stop, not a reason to measure by hand.
 
 ## 1. Agree the metric (ask, do not guess)
 
