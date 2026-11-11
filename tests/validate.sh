@@ -124,12 +124,27 @@ while IFS=$'\t' read -r name src; do
     [ -z "$unlisted" ]; check "help lists every skill and agent${unlisted:+ (not listed:$unlisted)}" $?
   fi
 
+  # The three profiles register the same hooks (events and commands); they differ only in permissions.
+  # A hook added to one profile and forgotten in another would silently not run there.
+  if [ -d "$src/templates/profiles" ]; then
+    ref=""; same=0; np=0
+    for ps in "$src"/templates/profiles/*/settings.json; do
+      np=$((np+1)); h=$(jq -c '[.hooks | to_entries[] | {e: .key, c: [.value[].hooks[].command] | sort}] | sort_by(.e)' "$ps" 2>/dev/null)
+      if [ -z "$ref" ]; then ref="$h"; elif [ "$h" != "$ref" ]; then same=1; echo "    differs: $ps"; fi
+    done
+    [ "$np" -ge 1 ] && [ $same = 0 ]; check "all $np profiles register the same hooks" $?
+    for hk in "$src"/templates/project/.claude/hooks/*.sh; do
+      b=$(basename "$hk"); case "$b" in test-hooks.sh|harness-conf.sh) continue ;; esac
+      grep -q "hooks/$b" "$src/templates/profiles/product/settings.json"; check "project hook $b is registered in the profiles" $?
+    done
+  fi
+
   # kebab-case: lowercase letters, digits, hyphens (dots for extensions).
   # Allowed exceptions: names Claude Code or convention require (SKILL.md, CLAUDE.md,
-  # INDEX.md, README.md, CHANGELOG.md, LICENSE) and leading-dot names.
+  # INDEX.md, README.md, CHANGELOG.md, LICENSE, the task card form _template.md) and leading-dot names.
   badnames=$(find "$src" -mindepth 1 \
     -not -name 'SKILL.md' -not -name 'CLAUDE.md' -not -name 'INDEX.md' \
-    -not -name 'README.md' -not -name 'CHANGELOG.md' -not -name 'LICENSE' \
+    -not -name 'README.md' -not -name 'CHANGELOG.md' -not -name 'LICENSE' -not -name '_template.md' \
     -not -name '.*' -not -name '.DS_Store' \
     | while IFS= read -r p; do b=$(basename "$p"); [[ "$b" =~ ^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*$ ]] || echo "$p"; done)
   [ -z "$badnames" ]; check "all file and folder names are kebab-case${badnames:+ (bad: $badnames)}" $?

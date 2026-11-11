@@ -2,7 +2,7 @@
 
 A Claude Code plugin marketplace with one plugin, **dev-harness**. It sets up and runs software projects the way experienced Claude Code users do: it works out who the work is for before anything is built, gives the project memory and guardrails that fit the kind of work (a prototype, a product or an assignment), has fresh-context reviewers check changes, and turns every correction into a lesson so the mistake does not come back.
 
-> **Status: v1.0.2.** Nine skills and five agents. From 1.0.0 the user-facing surface is stable: see [docs/stability.md](docs/stability.md). Works on macOS and Linux; Windows is not tested.
+> **Status: v1.1.0.** Twelve skills and five agents. From 1.0.0 the user-facing surface is stable: see [docs/stability.md](docs/stability.md). Works on macOS and Linux; Windows is not tested.
 
 ## Install
 
@@ -57,13 +57,16 @@ The hooks catch common mistakes, not a determined bypass, and the command list i
 
 | Skill | Use it when |
 |---|---|
-| `new`, `add <part>` | set up a whole project, or add one part (guardrails, reviewer, lessons, memory, workflows, rules) |
+| `new`, `add <part>` | set up a whole project, or add one part (guardrails, reviewer, lessons, memory, workflows, rules, tasks) |
 | `discover` | before building: who is it for, what matters, where to push. Writes `docs/intent.md` |
 | `lesson` | you corrected Claude. Records it, updates a similar lesson instead of duplicating, asks before promoting a rule to `CLAUDE.md` |
 | `explore` | make a number better, one change at a time. A script measures, keeps what improves, reverts what does not, logs it |
 | `goal` | keep working until a command exits 0, with a budget of rounds and minutes. Not the built-in `/goal`: the judge is your command, not a model |
 | `lens` | three fresh reviewers look from outside: the user (UX), the next developer (DX), an AI agent (AX) |
 | `showcase` | find the most impressive part and draft a demo, README section and talking points. Every claim is run or read, and labelled |
+| `split` | break a goal into task cards with a real check, a scope and dependencies. A script fails when two cards that could run at once would touch the same files |
+| `handoff` | write decisions, status, what is verified and the next step into the active card, then `/clear` safely |
+| `resume <id>` | start a session on one card with a small context: only the files that card needs |
 | `help` | this list, with the installed version |
 
 Five agents, each with one question (call them as `dev-harness:<name>`). Pick the one whose question it is:

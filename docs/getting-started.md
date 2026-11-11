@@ -61,6 +61,22 @@ To add one piece to a project that already has others, use `/dev-harness:add <pa
 
 Paste the brief. Discovery works out who grades it and how, so the intent records what the grader cares about. The assignment profile makes Claude explain each step and runs your tests when it tries to stop. Near the end, `/dev-harness:showcase` finds the strongest part to put in front of the grader.
 
+## Walkthrough 4: long or parallel work (task cards)
+
+```
+/dev-harness:split
+```
+
+`split` reads `docs/intent.md` and drafts task cards: each has a goal, a check that proves it is done, the globs it may touch, 3 to 5 files to read first, and its dependencies. It shows them as a table, says which can run at the same time, and writes nothing until you say yes. A script then checks the cards: two cards that would touch the same files without a dependency between them fail the check, because they cannot run in parallel.
+
+One session per card:
+
+```
+/dev-harness:resume 001
+```
+
+It loads only what that card needs and makes it the active card. Work on it; before you stop, run `/dev-harness:handoff` (Claude may run it itself). It writes the decisions, status, what is verified and the next step into the card and says it is safe to `/clear`. In the next session the card comes back on its own: a SessionStart hook puts it in Claude's context. For two cards at once, ask `split` for a worktree per card (`tasks.sh worktree <id>`), and open one Claude session in each.
+
 ## Day to day
 
 | You want to | Run |

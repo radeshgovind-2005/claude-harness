@@ -14,7 +14,7 @@ export CLAUDE_PROJECT_DIR="$T"
 
 # Copy of the hooks; harness.conf is written per scenario.
 H="$T/.hooks"; mkdir "$H"
-cp "$SRC"/harness-conf.sh "$SRC"/protect-paths.sh "$SRC"/guard-bash.sh "$SRC"/verify.sh "$SRC"/format.sh "$H"/
+cp "$SRC"/harness-conf.sh "$SRC"/protect-paths.sh "$SRC"/guard-bash.sh "$SRC"/verify.sh "$SRC"/format.sh "$SRC"/task-context.sh "$SRC"/task-compact.sh "$H"/
 chmod +x "$H"/*.sh
 setconf() { printf '%s\n' "$@" > "$H/harness.conf"; }
 noconf()  { rm -f "$H/harness.conf"; }
@@ -305,6 +305,74 @@ badjqedit() { echo '{"tool_name":"Edit","tool_input":{"file_path":"/x/.env"}}' |
 check "a failing jq: guard-bash.sh blocks"     2 "$(badjq)"
 check "a failing jq: protect-paths.sh blocks"  2 "$(badjqedit)"
 rm -f "$NB/jq"
+
+echo "Task card hooks (SessionStart, PreCompact)"
+K="$T/taskproj"; mkdir -p "$K/docs/tasks" "$K/.claude"; git -C "$K" init -q -b main
+printf -- '---\nid: 001-api\ntitle: API\nstatus: in-progress\nowner: me\ndepends:\nscope: src/**\n---\n\n# API\n\n## Goal\nUsers can log in.\n\n## Done when\nnpm test\n\n## Read first\n- src/api\n\n## Decisions\n- JWT, not sessions — stateless\n\n## Next\nwrite the failing test\n\n## Log\n- created\n' > "$K/docs/tasks/001-api.md"
+ctx()  { echo "{\"hook_event_name\":\"SessionStart\",\"source\":\"${1:-startup}\"}" | CLAUDE_PROJECT_DIR="$K" "$H/task-context.sh" 2>/dev/null; }
+pcmp() { echo '{"hook_event_name":"PreCompact","trigger":"auto","custom_instructions":null}' | CLAUDE_PROJECT_DIR="$K" "$H/task-compact.sh" 2>/dev/null; }
+notes() { grep -c 'compacted (auto)' "$K/docs/tasks/001-api.md"; }
+check "no active card: SessionStart prints nothing"     "" "$(ctx)"
+check "no active card: PreCompact prints nothing"       "" "$(pcmp)"
+check "no active card: the card gets no note"           0  "$(notes)"
+printf '009-gone\n' > "$K/.claude/active-task"
+check "a card that does not exist: SessionStart is silent" "" "$(ctx)"
+check "... and PreCompact too"                          "" "$(pcmp)"
+printf 'SECRET outside docs/tasks\n' > "$K/secret.md"; printf '../../secret\n' > "$K/.claude/active-task"
+check "a path in .claude/active-task is not followed"   "" "$(ctx)"
+printf '001-api\n' > "$K/.claude/active-task"
+out=$(ctx)
+grep -q 'ACTIVE TASK CARD' <<<"$out" && grep -q 'Users can log in' <<<"$out" && grep -q 'JWT, not sessions' <<<"$out"; check "active card: SessionStart prints the card" 0 $?
+grep -q 'dev-harness:handoff' <<<"$out"; check "... and says to hand off before /clear"   0 $?
+for src in resume clear compact fork; do grep -q 'Users can log in' <<<"$(ctx "$src")"; check "the card is injected on source=$src" 0 $?; done
+{ printf '# Lessons\n\n## Format\n\n### YYYY-MM-DD — [tag] x\n\n## Entries\n\n'
+  for i in 7 6 5 4 3 2 1; do printf '### 2026-11-0%s — [tests] lesson number %s\n- Mistake: m%s\n- Rule: r%s\n\n' "$i" "$i" "$i" "$i"; done
+  printf '### 2026-01-01 — [example] Example: silent skip\n- Mistake: x\n- Rule: y\n'; } > "$K/docs/lessons.md"
+out=$(ctx)
+check "the newest 5 lessons are injected"               5 "$(grep -c '^### 2026-11' <<<"$out")"
+grep -q 'lesson number 7' <<<"$out" && grep -q 'lesson number 3' <<<"$out" && ! grep -q 'lesson number 2' <<<"$out"; check "... newest first: 7 to 3, not 2" 0 $?
+! grep -q 'YYYY-MM-DD' <<<"$out"; check "... only from Entries, not the Format section" 0 $?
+{ printf '# Lessons\n\n## Entries\n\n### 2026-01-01 — [example] Example: silent skip\n- Mistake: x\n- Rule: y\n\n### 2026-11-01 — [git] real one\n- Mistake: m\n- Rule: r\n'; } > "$K/docs/lessons.md"
+out=$(ctx); ! grep -q 'silent skip' <<<"$out" && grep -q 'real one' <<<"$out"; check "the template's [example] lesson is skipped" 0 $?
+out=$(echo '{}' | DH_TASK_CONTEXT_LIMIT=300 CLAUDE_PROJECT_DIR="$K" "$H/task-context.sh")
+body=$(printf '%s\n' "$out" | sed '$d')   # everything but the marker line
+check "the output is capped"                       1 "$([ ${#body} -le 300 ] && [ ${#body} -ge 250 ] && echo 1 || echo 0)"
+grep -q 'truncated at 300 characters: read docs/tasks/001-api.md' <<<"$out"; check "... with a marker naming the card" 0 $?
+cp "$K/docs/tasks/001-api.md" "$T/card.bak"; head -c 30000 /dev/zero | tr '\0' 'x' >> "$K/docs/tasks/001-api.md"
+check "a huge card stays under Claude Code's 10,000-character cap" 1 "$([ "$(ctx | wc -c)" -lt 10000 ] && echo 1 || echo 0)"
+cp "$T/card.bak" "$K/docs/tasks/001-api.md"
+touch "$K/untracked.txt"
+out=$(pcmp); rc=$?
+grep -q 'Keep these verbatim' <<<"$out" && grep -q '001-api' <<<"$out" && grep -q 'Users can log in' <<<"$out" && grep -q 'JWT, not sessions' <<<"$out" && grep -q 'status: in-progress' <<<"$out"; check "PreCompact tells the summary to keep goal, decisions, status" 0 $?
+check "PreCompact appends one note"                     1 "$(notes)"
+grep -Eq '^- 20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z compacted \(auto\); git status \([0-9]+ changed\):$' "$K/docs/tasks/001-api.md"; check "... timestamped, with the git status count" 0 $?
+grep -q '^  - `?? untracked.txt`$' "$K/docs/tasks/001-api.md"; check "... and the git status snapshot" 0 $?
+pcmp >/dev/null; check "each compaction adds one more note"   2 "$(notes)"
+for i in $(seq 1 30); do touch "$K/f$i.txt"; done; pcmp >/dev/null
+grep -Eq '^  - \([0-9]+ more\)$' "$K/docs/tasks/001-api.md"; check "the snapshot is capped at 20 lines" 0 $?
+chmod 444 "$K/docs/tasks/001-api.md"
+out=$(pcmp); rc=$?; chmod 644 "$K/docs/tasks/001-api.md"
+check "a read-only card: PreCompact still exits 0" 0 "$rc"
+grep -q 'could not append' <<<"$out"; check "... and says the note was not written" 0 $?
+check "garbage input: PreCompact exits 0 (exit 2 would block compaction)" 0 "$(echo 'not json' | CLAUDE_PROJECT_DIR="$K" "$H/task-compact.sh" >/dev/null 2>&1; echo $?)"
+check "garbage input: SessionStart exits 0"             0 "$(echo 'not json' | CLAUDE_PROJECT_DIR="$K" "$H/task-context.sh" >/dev/null 2>&1; echo $?)"
+printf -- '---\nid: 001-api\nstatus: open\n---\n\n## Log\n- created\n\n## Notes\nhand-written\n' > "$K/docs/tasks/001-api.md"
+pcmp >/dev/null
+check "the note lands at the end of ## Log, before a section that follows it" "- created|- NOTE||## Notes|hand-written" \
+  "$(sed -n '/^## Log$/,$p' "$K/docs/tasks/001-api.md" | sed '1d' | sed -E 's/^- 20[0-9T:Z-]+ compacted.*/- NOTE/' | grep -v '^  - ' | tr '\n' '|' | sed 's/|$//')"
+printf -- '---\nid: 001-api\nstatus: open\n---\n\n## Goal\nx\n' > "$K/docs/tasks/001-api.md"
+pcmp >/dev/null
+grep -q '^## Log$' "$K/docs/tasks/001-api.md" && [ "$(tail -n 1 "$K/docs/tasks/001-api.md" | cut -c1-4)" != "## L" ]; check "a card without ## Log gets the section and the note" 0 $?
+cp "$T/card.bak" "$K/docs/tasks/001-api.md"
+NG="$T/nogit"; mkdir -p "$NG/docs/tasks" "$NG/.claude"; cp "$T/card.bak" "$NG/docs/tasks/001-api.md"; printf '001-api\n' > "$NG/.claude/active-task"
+echo '{"trigger":"manual"}' | GIT_CEILING_DIRECTORIES="$T" CLAUDE_PROJECT_DIR="$NG" "$H/task-compact.sh" >/dev/null 2>&1
+grep -q 'compacted (manual); git status: not a git repository' "$NG/docs/tasks/001-api.md"; check "outside git: the note says so" 0 $?
+NJ="$T/nojq-tasks"; mkdir "$NJ"
+for t in cat grep sed tr awk head tail date git bash wc; do tp=$(command -v "$t" 2>/dev/null) && [ -n "$tp" ] && ln -s "$tp" "$NJ/$t"; done
+out=$(echo '{}' | PATH="$NJ" CLAUDE_PROJECT_DIR="$K" /bin/bash "$H/task-context.sh" 2>/dev/null)
+grep -q 'Users can log in' <<<"$out"; check "no jq: SessionStart still prints the card" 0 $?
+out=$(echo '{"trigger":"auto"}' | PATH="$NJ" CLAUDE_PROJECT_DIR="$K" /bin/bash "$H/task-compact.sh" 2>/dev/null)
+grep -q 'Keep these verbatim' <<<"$out"; check "no jq: PreCompact still works" 0 $?
 
 echo
 echo "Result: $pass passed, $fail failed"

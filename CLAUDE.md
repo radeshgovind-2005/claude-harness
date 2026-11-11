@@ -15,7 +15,7 @@
 
 - Validate manifests, layout, help vs reality: `bash tests/validate.sh`
 - Scaffold and project hook tests (about 4 min, run in the background): `/bin/bash tests/scaffold-test.sh`
-- One suite: `/bin/bash tests/explore-test.sh` (also `lens-test.sh`, `goal-test.sh`, `showcase-test.sh`)
+- One suite: `/bin/bash tests/explore-test.sh` (also `lens-test.sh`, `goal-test.sh`, `showcase-test.sh`, `tasks-test.sh`)
 - Docs, examples, links, versions, line endings, icon (run after any change to README, `docs/` or `examples/`): `/bin/bash tests/docs-test.sh`
 - Everything, one summary (`--fast` skips the 4-minute scaffold suite and says so): `/bin/bash tests/run-all.sh`
 - Shell lint: `shellcheck -S warning <script>`
@@ -25,7 +25,7 @@
 
 - `plugins/dev-harness/skills/<name>/SKILL.md`: one folder per skill (kebab-case, exact-case `SKILL.md`).
 - `plugins/dev-harness/agents/<name>.md`: read-only reviewers.
-- `plugins/dev-harness/scripts/`: `scaffold.sh`, `explore.sh`, `goal.sh`, `ax-check.sh`, `showcase-facts.sh`, `lib.sh`.
+- `plugins/dev-harness/scripts/`: `scaffold.sh`, `explore.sh`, `goal.sh`, `ax-check.sh`, `showcase-facts.sh`, `tasks.sh`, `lib.sh`.
 - `plugins/dev-harness/templates/`: copied INTO projects (router, docs, hooks, CI). Never loaded by Claude Code.
 - `tests/`: one suite per area. `docs/`: user and contributor docs.
 

@@ -36,3 +36,12 @@ Do not continue from a state you cannot describe. If you lose track, stop and re
 
 - Use one git worktree per parallel task: `git worktree add ../<repo>-<task> -b <type>/<task>`.
 - Two tasks that write the same file are NOT independent. Run them in order.
+
+## Long or parallel work (task cards)
+
+State lives in files, not in the conversation. A session is disposable; a card in `docs/tasks/` is not.
+
+- **Split** a goal into cards with `/dev-harness:split`. Cards whose scopes overlap are not parallel unless one depends on the other; `tasks.sh check` enforces it.
+- **One card per session.** `/dev-harness:resume <id>` loads only what that card needs and makes it the active card; the SessionStart hook brings it back after `/clear` or a compaction.
+- **Parallel:** `tasks.sh worktree <id>` gives each card its own branch and worktree. Two sessions never share a scope.
+- **Hand off, then clear.** Before you stop, `/dev-harness:handoff` writes decisions, status, what is verified and the next step into the card. A fresh session with the card beats a long compacted one.

@@ -18,5 +18,6 @@ Read them as "what does it look like", not as proof that it works on your projec
 | [10-tester.md](10-tester.md) | `tester` | mutants in a temporary copy, and the tests that missed them |
 | [11-architect.md](11-architect.md) | `architect` | structure facts, options with costs, a recommendation |
 | [12-designer.md](12-designer.md) | `designer` | accessibility and contrast findings from source, with computed ratios |
+| [13-task-cards.md](13-task-cards.md) | `split`, `resume`, `handoff`, task hooks | three cards from an intent, a no-tools session that knows the active card (SessionStart), a handoff, the PreCompact note in the card, and an overlap FAIL that one dependency does not fix |
 
 The `skeptic` is not here because its report is the same kind of list as `lens` and `tester`; `docs/progress.md` records each time it found something.
