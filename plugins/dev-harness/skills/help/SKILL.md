@@ -46,7 +46,7 @@ Which reviewer for what: `skeptic` asks "is this change wrong?", `lens-reviewer`
 | | prototype | product | assignment |
 |---|---|---|---|
 | Edits, commits, pushes on `main` | allowed | blocked | allowed |
-| Check when Claude stops (`VERIFY_CMD`) | off | typecheck + lint | tests |
+| Check when Claude stops (`VERIFY_CMD`) | off | typecheck + lint, if found | tests, if found |
 | `git push` asks first | no | yes | no |
 | Claude explains each step | no | no | yes |
 

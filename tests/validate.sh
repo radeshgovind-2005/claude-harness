@@ -85,6 +85,11 @@ while IFS=$'\t' read -r name src; do
     else
       bad "skill '$sn' has SKILL.md (exact case) with closed frontmatter and description"
     fi
+    # Write(path), MultiEdit(path) and NotebookEdit(path) permission rules are accepted but never match
+    # (permissions docs: "use Edit(docs/**) in place of Write(docs/**)"); an Edit(path) rule covers every
+    # file-edit tool. A dead rule would make a skill look pre-approved when it is not.
+    deadrules=$(frontmatter "$s/SKILL.md" 2>/dev/null | sed -n 's/^allowed-tools:[[:space:]]*//p' | grep -Eo '(Write|MultiEdit|NotebookEdit)\([^)]*\)' | tr '\n' ' ')
+    [ -z "$deadrules" ]; check "skill '$sn' allowed-tools has no Write/MultiEdit/NotebookEdit path rule (use Edit(path))${deadrules:+ (found: $deadrules)}" $?
   done
 
   for a in "$src"/agents/*.md; do

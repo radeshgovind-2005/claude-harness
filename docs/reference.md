@@ -31,9 +31,9 @@ Every skill and agent: when to use it, what it reads and writes, what it never d
 | `memory` | `CLAUDE.md` router, `docs/INDEX.md`, architecture, conventions, lessons, progress, experiments |
 | `lessons` | `docs/lessons.md` |
 | `reviewer` | `docs/agents/INDEX.md` |
-| `workflows` | `docs/workflow.md`, `docs/agents/first-workflow.md` |
+| `workflows` | `docs/workflow.md`, `docs/agents/first-workflow.md`, `docs/audits/README.md` |
 | `rules` | `.claude/rules/` |
-| `guardrails` | hooks, `harness.conf`, `.claude/settings.json`, CI workflow, then the hook self-test |
+| `guardrails` | hooks (with the shared `harness-conf.sh` parser), `harness.conf`, `.claude/settings.json`, CI workflow, then the hook self-test. Without `--verify-cmd`, product and assignment get a `VERIFY_CMD` detected from the project, or an empty one (both reported as a `note`) |
 | `all` | every part; guardrails last |
 
 - **Needs a profile:** `memory`, `guardrails`, `all`. It reads `harness.conf`, then `CLAUDE.md`, then asks.

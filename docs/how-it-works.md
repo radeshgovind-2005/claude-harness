@@ -20,7 +20,7 @@ A rule that must never break is a hook, a test or CI, not a line in `CLAUDE.md`.
 | Risky commands ask first: `reset --hard`, `git clean -f`, `DROP` / `TRUNCATE`, shell writes to `.claude/hooks` or `harness.conf` | `guard-bash.sh` (ask) | same |
 | No edits to `.env*`, keys, lockfiles, `.claude/hooks/`, `.claude/settings.json`; none on `main` or `master` when `BLOCK_MAIN=1` | `protect-paths.sh` (exit 2) | same |
 | The project's formatter runs after an edit; it never blocks | `format.sh` | same |
-| Claude cannot stop while `VERIFY_CMD` fails (once; `stop_hook_active` prevents a loop) | `verify.sh` | same |
+| Claude cannot stop while `VERIFY_CMD` fails or runs past 240 s (once; `stop_hook_active` prevents a loop). It runs only when the git tree has uncommitted or untracked changes | `verify.sh` | same |
 | The hooks still trip | `test-hooks.sh`, and the `dev-harness-hooks` CI workflow | same |
 | `docs/intent.md` stays the only editable file while `status: discovering` | `discover-lock.sh`, a skill hook | the session that ran `discover` |
 | `goal` ends on its check or its budget | `goal-stop.sh`, a skill hook | the session that ran `goal` |
@@ -38,9 +38,9 @@ A profile is a `harness.conf` plus a matching `settings.json`, chosen once.
 |---|---|
 | `PROFILE` | `prototype`, `product` or `assignment` |
 | `BLOCK_MAIN` | `1` blocks edits, commits and pushes on `main` / `master`. Only an explicit `0` lifts it; a typo or an empty value keeps it on |
-| `VERIFY_CMD` | runs when Claude stops; empty means off; keep it under 60 seconds |
+| `VERIFY_CMD` | runs when Claude stops, if `git status --porcelain` shows uncommitted or untracked changes (always, outside a git repository); a clean tree is skipped. Empty means off. Keep it under 60 seconds: `verify.sh` stops it after 240 s and blocks the stop once with "TIMED OUT". No profile ships a command: `new` and `add` propose one, and `scaffold.sh` detects one from `package.json`, a `Makefile`, `Cargo.toml`, `go.mod` or `pyproject.toml` when none is given |
 
-The hooks parse this file, they never source it. Whether `git push` asks first is not in this file: it is the `ask` list in `.claude/settings.json`, so changing profiles after setup means editing both files. Claude's edits to it are blocked, and shell commands that look like they change it ask you first.
+The hooks parse this file, they never source it. One parser, `.claude/hooks/harness-conf.sh`, is shared by the hooks and the `dev-harness-hooks` CI workflow, so CI reads quotes, spaces and CRLF exactly as the hooks do; without it the two guards block everything (fail closed) and `verify.sh` says the work is not verified. Whether `git push` asks first is not in this file: it is the `ask` list in `.claude/settings.json`, so changing profiles after setup means editing both files. Claude's edits to it are blocked, and shell commands that look like they change it ask you first.
 
 ## Why the strict hooks are not in the plugin
 

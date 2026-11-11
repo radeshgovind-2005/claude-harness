@@ -14,7 +14,7 @@ export CLAUDE_PROJECT_DIR="$T"
 
 # Copy of the hooks; harness.conf is written per scenario.
 H="$T/.hooks"; mkdir "$H"
-cp "$SRC"/protect-paths.sh "$SRC"/guard-bash.sh "$SRC"/verify.sh "$SRC"/format.sh "$H"/
+cp "$SRC"/harness-conf.sh "$SRC"/protect-paths.sh "$SRC"/guard-bash.sh "$SRC"/verify.sh "$SRC"/format.sh "$H"/
 chmod +x "$H"/*.sh
 setconf() { printf '%s\n' "$@" > "$H/harness.conf"; }
 noconf()  { rm -f "$H/harness.conf"; }
@@ -164,6 +164,72 @@ printf 'BLOCK_MAIN=1\r\nVERIFY_CMD="false"\r\n' > "$H/harness.conf"
 check "CRLF conf: failing check still blocks" 2 "$(stop)"
 printf 'BLOCK_MAIN=1\r\nVERIFY_CMD="true"\r\n' > "$H/harness.conf"
 check "CRLF conf: passing check allows"   0 "$(stop)"
+
+echo "verify.sh time limit"
+# limited LIMIT [ENV=...]: run verify.sh with a short limit; prints "rc seconds", stderr to $T/v.err.
+limited() { local s=$SECONDS rc; echo '{}' | env DH_VERIFY_TIMEOUT="$1" ${2:+"$2"} "$H/verify.sh" 2>"$T/v.err"; rc=$?; echo "$rc $((SECONDS - s))"; }
+# A duration unique to this run, so a test-hooks.sh running at the same time is not counted.
+NAP="23.$$"
+sleepers() { ps -A -o command= 2>/dev/null | grep -cxF "sleep $NAP"; }
+for mode in "" DH_VERIFY_NO_TIMEOUT_CMD=1; do
+  label=${mode:+"bash fallback"}; label=${label:-"timeout command if present"}
+  setconf "BLOCK_MAIN=1" "VERIFY_CMD=\"sleep $NAP & sleep $NAP; wait\""
+  read -r rc secs <<<"$(limited 1 "$mode")"
+  check "[$label] a check over the limit blocks the stop"     2 "$rc"
+  check "[$label] ... and is stopped in time (<10 s)"         1 "$([ "$secs" -lt 10 ] && echo 1 || echo 0)"
+  grep -q 'TIMED OUT after 1 s' "$T/v.err"; check "[$label] ... with a TIMED OUT message" 0 $?
+  n=0; while [ "$(sleepers)" != 0 ] && [ $n -lt 30 ]; do sleep 0.1; n=$((n + 1)); done
+  check "[$label] ... and leaves no process behind"           0 "$(sleepers)"
+  # A check that ignores SIGTERM (the ignore is inherited by sleep) must still be killed.
+  setconf "BLOCK_MAIN=1" "VERIFY_CMD=\"trap '' TERM; sleep $NAP\""
+  read -r rc secs <<<"$(limited 1 "$mode")"
+  check "[$label] a check that ignores TERM is still stopped (<10 s)" 1 "$([ "$rc" = 2 ] && [ "$secs" -lt 10 ] && echo 1 || echo 0)"
+  n=0; while [ "$(sleepers)" != 0 ] && [ $n -lt 30 ]; do sleep 0.1; n=$((n + 1)); done
+  check "[$label] ... and leaves no process behind"           0 "$(sleepers)"
+  setconf "BLOCK_MAIN=1" 'VERIFY_CMD="true"'
+  check "[$label] a fast passing check is allowed"            0 "$(limited 1 "$mode" | cut -d' ' -f1)"
+  setconf "BLOCK_MAIN=1" 'VERIFY_CMD="false"'
+  check "[$label] a fast failing check still blocks"          2 "$(limited 1 "$mode" | cut -d' ' -f1)"
+  # exit 124 is what GNU timeout returns on a time-out; a check that exits 124 at once has not timed out.
+  setconf "BLOCK_MAIN=1" 'VERIFY_CMD="exit 124"'
+  check "[$label] a fast check exiting 124 blocks"            2 "$(limited 3 "$mode" | cut -d' ' -f1)"
+  grep -q 'VERIFICATION FAILED (exit 124)' "$T/v.err"; check "[$label] ... as FAILED, not TIMED OUT" 0 $?
+done
+
+echo "verify.sh runs only when the work tree has changes"
+C="$T/clean"; mkdir "$C"; git -C "$C" init -q -b main
+git -C "$C" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+setconf "BLOCK_MAIN=1" 'VERIFY_CMD="false"'
+cstop() { echo '{}' | CLAUDE_PROJECT_DIR="$C" "$H/verify.sh" 2>/dev/null; echo $?; }
+check "clean tree: the check is skipped"          0 "$(cstop)"
+touch "$C/new.txt"
+check "an untracked file: the check runs"         2 "$(cstop)"
+
+echo "One parser: harness-conf.sh"
+for v in 'BLOCK_MAIN="0"' 'BLOCK_MAIN=0' ' BLOCK_MAIN = 0 ' 'BLOCK_MAIN=1' 'BLOCK_MAIN="1"' 'BLOCK_MAIN=' 'X=1'; do
+  printf '%s\r\n' "$v" > "$H/harness.conf"
+  a=$(bash "$H/harness-conf.sh" BLOCK_MAIN 1); b=$(. "$H/harness-conf.sh"; conf BLOCK_MAIN 1)
+  check "run and sourced agree on '$v' ($a)"  "$b" "$a"
+done
+check "run mode without arguments fails"  2 "$(bash "$H/harness-conf.sh" >/dev/null 2>&1; echo $?)"
+setconf "PROFILE=prototype" "BLOCK_MAIN=0" 'VERIFY_CMD="false"'
+mv "$H/harness-conf.sh" "$H/harness-conf.sh.off"
+check "no parser: protect-paths.sh blocks"        2 "$(edit src/app.ts)"
+check "no parser: guard-bash.sh blocks"           2 "$(run 'ls')"
+check "no parser: verify.sh blocks once"          2 "$(stop)"
+check "no parser: verify.sh loop guard allows"    0 "$(stop '{"stop_hook_active":true}')"
+grep -q 'add guardrails' <<<"$(jq -n '{tool_name:"Bash",tool_input:{command:"ls"}}' | "$H/guard-bash.sh" 2>&1)"; check "no parser: the message says how to restore it" 0 $?
+mv "$H/harness-conf.sh.off" "$H/harness-conf.sh"
+
+echo "A project dir spelled in another case"
+setconf "PROFILE=prototype" "BLOCK_MAIN=0" 'VERIFY_CMD=""'
+UP=$(printf '%s' "$T" | tr '[:lower:]' '[:upper:]')
+cedit() { jq -n --arg f "$2" '{tool_name:"Edit",tool_input:{file_path:$f}}' | CLAUDE_PROJECT_DIR="$1" "$H/protect-paths.sh" 2>/dev/null; echo $?; }
+check "upper-case root: .claude/hooks is blocked"         2 "$(cedit "$UP" "$T/.claude/hooks/x.sh")"
+check "upper-case root: .claude/settings.json is blocked" 2 "$(cedit "$UP" "$T/.claude/settings.json")"
+check "upper-case root: .git/ is blocked"                 2 "$(cedit "$UP" "$T/.git/config")"
+check "upper-case file path: .claude/hooks is blocked"    2 "$(cedit "$T" "$UP/.claude/hooks/x.sh")"
+check "upper-case root: src is still allowed"             0 "$(cedit "$UP" "$T/src/a.ts")"
 
 echo "git commit -n is --no-verify"
 setconf "PROFILE=prototype" "BLOCK_MAIN=0" 'VERIFY_CMD=""'

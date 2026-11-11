@@ -45,7 +45,7 @@ Every profile blocks force push, `--no-verify` (and `git commit -n`), reading `.
 /dev-harness:new --profile product
 ```
 
-Run `discover` first if there is no `docs/intent.md`. `new` offers to switch to a `chore/dev-harness-setup` branch because the product profile blocks edits on `main` as soon as the guardrails land. It proposes a `VERIFY_CMD` from `package.json`, `pyproject.toml`, a `Makefile` and similar (typecheck plus lint, under 60 seconds) and asks you to confirm. Afterwards:
+Run `discover` first if there is no `docs/intent.md`. `new` offers to switch to a `chore/dev-harness-setup` branch because the product profile blocks edits on `main` as soon as the guardrails land. It proposes a `VERIFY_CMD` from `package.json`, `pyproject.toml`, a `Makefile` and similar (typecheck plus lint, under 60 seconds) and asks you to confirm. No profile ships a fixed command: if nothing is found, it stays empty and `verify.sh` is off until you set it. Afterwards:
 
 - Commit the setup yourself.
 - Turn on branch protection and require the `dev-harness-hooks` check on your Git host. Local hooks stop mistakes, not a deliberate bypass.
