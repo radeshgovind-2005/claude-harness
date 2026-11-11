@@ -10,7 +10,7 @@
 #               memory     CLAUDE.md, docs/{INDEX,architecture,conventions,lessons,progress,experiments}.md
 #               lessons    docs/lessons.md
 #               reviewer   docs/agents/INDEX.md
-#               workflows  docs/workflow.md, docs/agents/first-workflow.md
+#               workflows  docs/workflow.md, docs/agents/first-workflow.md, docs/audits/README.md
 #               rules      .claude/rules/
 #             --profile is required for the default and for memory (CLAUDE.md is rendered from it).
 # guardrails  .claude/hooks/*.sh, harness.conf, .claude/settings.json, CI workflow; then runs test-hooks.sh.
@@ -80,6 +80,50 @@ put() {
   say add "$rel"; ADDED="$ADDED|$rel|"
 }
 
+# detect_verify PROFILE: a fast check command for this project, or nothing. Used only when --verify-cmd was
+# not given (new and add propose a command and pass it; this is the fallback). First match wins:
+# package.json scripts, Makefile targets, Cargo.toml, go.mod, pyproject.toml.
+# product = typecheck + lint, assignment = tests.
+detect_verify() {
+  local prof="$1" pm=npm run="npm run" cmd="" s
+  if [ -f "$DEST/package.json" ] && jq -e '.scripts | type == "object"' "$DEST/package.json" >/dev/null 2>&1; then
+    if [ -f "$DEST/pnpm-lock.yaml" ]; then pm=pnpm; run="pnpm run"; elif [ -f "$DEST/yarn.lock" ]; then pm=yarn; run="yarn"; fi
+    if [ "$prof" = product ]; then
+      for s in typecheck lint; do
+        jq -e --arg s "$s" '.scripts[$s] | type == "string"' "$DEST/package.json" >/dev/null 2>&1 \
+          && cmd="${cmd:+$cmd && }$run $s"
+      done
+    else
+      # npm init writes a "test" script that only fails ("Error: no test specified"): that is not a test.
+      jq -e '.scripts.test | type == "string" and (test("no test specified") | not)' "$DEST/package.json" >/dev/null 2>&1 \
+        && cmd="$pm test"
+    fi
+    [ -n "$cmd" ] && { printf '%s' "$cmd"; return; }
+  fi
+  if [ -f "$DEST/Makefile" ]; then
+    if [ "$prof" = product ]; then
+      for s in check lint; do grep -Eq "^$s:" "$DEST/Makefile" && { printf 'make %s' "$s"; return; }; done
+    else
+      grep -Eq '^test:' "$DEST/Makefile" && { printf 'make test'; return; }
+    fi
+  fi
+  if [ -f "$DEST/Cargo.toml" ]; then
+    if [ "$prof" = product ]; then printf 'cargo clippy'; else printf 'cargo test'; fi; return
+  fi
+  if [ -f "$DEST/go.mod" ]; then
+    if [ "$prof" = product ]; then printf 'go vet ./...'; else printf 'go test ./...'; fi; return
+  fi
+  if [ -f "$DEST/pyproject.toml" ]; then
+    if [ "$prof" = product ]; then
+      grep -q '^\[tool\.ruff' "$DEST/pyproject.toml" && cmd="ruff check ."
+      grep -q '^\[tool\.mypy' "$DEST/pyproject.toml" && cmd="${cmd:+$cmd && }mypy ."
+      printf '%s' "$cmd"
+    else
+      printf 'python3 -m pytest -q'
+    fi
+  fi
+}
+
 # want PART...: true when no --part was given, or --part is one of the arguments.
 want() { local p; [ -z "$PART" ] && return 0; for p in "$@"; do [ "$p" = "$PART" ] && return 0; done; return 1; }
 
@@ -111,7 +155,7 @@ if [ "$PHASE" = files ]; then
     case "$rel" in
       docs/lessons.md) owners="lessons memory" ;;
       docs/agents/INDEX.md) owners="reviewer" ;;
-      docs/workflow.md|docs/agents/first-workflow.md) owners="workflows" ;;
+      docs/workflow.md|docs/agents/first-workflow.md|docs/audits/*) owners="workflows" ;;
       .claude/rules/*) owners="rules" ;;
       *) owners="memory" ;;
     esac
@@ -123,7 +167,7 @@ if [ "$PHASE" = files ]; then
 
   # The memory part writes the router and docs/INDEX.md, which route to files owned by other parts.
   if [ "$PART" = memory ]; then
-    for pair in "docs/workflow.md:workflows" "docs/agents/first-workflow.md:workflows" "docs/agents/INDEX.md:reviewer"; do
+    for pair in "docs/workflow.md:workflows" "docs/agents/first-workflow.md:workflows" "docs/audits/README.md:workflows" "docs/agents/INDEX.md:reviewer"; do
       if [ ! -e "$DEST/${pair%%:*}" ] && [ ! -L "$DEST/${pair%%:*}" ]; then
         say note "${pair%%:*} is routed from CLAUDE.md or docs/INDEX.md but does not exist; add it with: add ${pair##*:}"
       fi
@@ -144,8 +188,21 @@ if [ "$PHASE" = guardrails ]; then
     fi
   done
 
-  # harness.conf from the profile, with VERIFY_CMD overridden if given.
+  # harness.conf from the profile, with VERIFY_CMD overridden if given. No profile ships a stack-specific
+  # command: without --verify-cmd, product and assignment get one detected from the project (or none).
   conf="$TMPD/harness.conf"
+  if [ $VERIFY_SET = 0 ] && [ ! -e "$DEST/.claude/hooks/harness.conf" ] && [ ! -L "$DEST/.claude/hooks/harness.conf" ]; then
+    case "$PROFILE" in
+      product|assignment)
+        VERIFY=$(detect_verify "$PROFILE")
+        if [ -n "$VERIFY" ]; then
+          VERIFY_SET=1
+          say note "VERIFY_CMD detected: $VERIFY (confirm it with the user; only the user edits .claude/hooks/harness.conf)"
+        else
+          say note "VERIFY_CMD is empty: no test, lint or typecheck command was found, so verify.sh is off until the user sets VERIFY_CMD in .claude/hooks/harness.conf"
+        fi ;;
+    esac
+  fi
   if [ $VERIFY_SET = 1 ]; then
     # Written verbatim: no awk -v (it would process backslash escapes).
     { grep -v '^VERIFY_CMD=' "$PROF/harness.conf"; printf 'VERIFY_CMD="%s"\n' "$VERIFY"; } > "$conf"

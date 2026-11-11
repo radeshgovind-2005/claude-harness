@@ -12,7 +12,7 @@ Map of all project docs. Read only the file your task needs.
 | `experiments.md` | You try a variant against a metric | Baseline, variants, results, kept or reverted |
 | `agents/INDEX.md` | You consider subagents or a workflow | Which tool for which task shape |
 | `agents/first-workflow.md` | You run your first dynamic workflow | A safe, scoped, read-only audit |
-| `audits/` | You need a past audit report | Workflow outputs |
+| `audits/README.md` | You need a past audit report | Saved workflow and review reports, newest first |
 
 ## Rules for this folder
 

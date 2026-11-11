@@ -27,7 +27,7 @@ for prof in prototype product assignment; do
            .claude/settings.json .claude/hooks/harness.conf .github/workflows/dev-harness-hooks.yml; do
     [ -f "$d/$f" ]; check "has $f" $?
   done
-  for h in protect-paths guard-bash format verify test-hooks; do [ -x "$d/.claude/hooks/$h.sh" ]; check "hook $h.sh is executable" $?; done
+  for h in harness-conf protect-paths guard-bash format verify test-hooks; do [ -x "$d/.claude/hooks/$h.sh" ]; check "hook $h.sh is executable" $?; done
   grep -q 'ok      hook tests: Result: [0-9]* passed, 0 failed' "$d.guard.log"; check "project hook tests ran and passed" $?
   [ "$(grep -c '{{' "$d/CLAUDE.md")" = 0 ]; check "CLAUDE.md has no unrendered {{markers}}" $?
   grep -q "^- Profile: $prof " "$d/CLAUDE.md"; check "CLAUDE.md names profile $prof" $?
@@ -44,7 +44,8 @@ for prof in prototype product assignment; do
       grep -qx 'BLOCK_MAIN=1' "$d/.claude/hooks/harness.conf"; check "product: BLOCK_MAIN=1" $?
       jq -e '.permissions.ask | index("Bash(git push:*)")' "$d/.claude/settings.json" >/dev/null; check "product: git push asks" $?
       grep -q 'Never work on `main`' "$d/CLAUDE.md"; check "product: CLAUDE.md says never work on main" $?
-      grep -q '^VERIFY_CMD="..*"' "$d/.claude/hooks/harness.conf"; check "product: VERIFY_CMD set by default" $? ;;
+      grep -qx 'VERIFY_CMD=""' "$d/.claude/hooks/harness.conf"; check "product: no stack, so VERIFY_CMD is empty (no npm default)" $?
+      grep -q 'note    VERIFY_CMD is empty' "$d.guard.log"; check "product: an empty VERIFY_CMD is reported" $? ;;
     prototype)
       [ "$(edit_on_main "$d")" = 0 ]; check "prototype: edit on main is allowed" $?
       jq -e '.permissions.ask | index("Bash(git push:*)") | not' "$d/.claude/settings.json" >/dev/null; check "prototype: git push does not ask" $?
@@ -53,7 +54,8 @@ for prof in prototype product assignment; do
     assignment)
       [ "$(edit_on_main "$d")" = 0 ]; check "assignment: edit on main is allowed" $?
       grep -qi 'explain each step' "$d/CLAUDE.md"; check "assignment: CLAUDE.md asks to explain steps" $?
-      grep -q '^VERIFY_CMD="..*"' "$d/.claude/hooks/harness.conf"; check "assignment: VERIFY_CMD set (tests)" $? ;;
+      grep -qx 'VERIFY_CMD=""' "$d/.claude/hooks/harness.conf"; check "assignment: no stack, so VERIFY_CMD is empty (no npm default)" $?
+      grep -q 'note    VERIFY_CMD is empty' "$d.guard.log"; check "assignment: an empty VERIFY_CMD is reported" $? ;;
   esac
 
   before=$(snapshot "$d")
@@ -146,7 +148,7 @@ part_files() { # part -> expected file set (space separated, sorted, trailing sp
   case "$1" in
     lessons) echo "docs/lessons.md " ;;
     reviewer) echo "docs/agents/INDEX.md " ;;
-    workflows) echo "docs/agents/first-workflow.md docs/workflow.md " ;;
+    workflows) echo "docs/agents/first-workflow.md docs/audits/README.md docs/workflow.md " ;;
     rules) echo ".claude/rules/example-api.md " ;;
     memory) echo ".gitignore CLAUDE.md docs/INDEX.md docs/architecture.md docs/conventions.md docs/experiments.md docs/lessons.md docs/progress.md " ;;
   esac; }
@@ -196,7 +198,7 @@ done
 bash "$SC" "$(newrepo)" files --part "" --profile product >/dev/null 2>&1; [ $? -ne 0 ]; check "empty --part value fails (not 'all parts')" $?
 # memory routes to files other parts own: it must say so; the full files phase must not
 d=$(newrepo); out=$(bash "$SC" "$d" files --part memory --profile product 2>&1)
-grep -q 'note .*docs/workflow.md.*add workflows' <<<"$out" && grep -q 'note .*docs/agents/INDEX.md.*add reviewer' <<<"$out"; check "memory: names the routed files it did not write" $?
+grep -q 'note .*docs/workflow.md.*add workflows' <<<"$out" && grep -q 'note .*docs/audits/README.md.*add workflows' <<<"$out" && grep -q 'note .*docs/agents/INDEX.md.*add reviewer' <<<"$out"; check "memory: names the routed files it did not write" $?
 out=$(bash "$SC" "$d" files --part workflows 2>&1; bash "$SC" "$d" files --part reviewer 2>&1; bash "$SC" "$d" files --part memory --profile product 2>&1)
 ! grep -q '^  note ' <<<"$out"; check "memory: no note once workflows and reviewer exist" $?
 out=$(bash "$SC" "$(newrepo)" files --profile product 2>&1); ! grep -q '^  note ' <<<"$out"; check "full files phase prints no note" $?
@@ -211,6 +213,66 @@ d=$(newrepo); bash "$SC" "$d" files --part lessons >/dev/null 2>&1
 for f in "$P/skills/lesson/SKILL.md" "$P/skills/discover/SKILL.md" "$TPL_LESSONS"; do
   grep -qF '[discover]' "$f"; check "[discover] tag named in ${f#"$P"/}" $?
 done
+
+
+echo "VERIFY_CMD detection (no --verify-cmd)"
+# vd PROFILE SETUP...: scaffold guardrails into a repo prepared by SETUP (eval'd in it), print VERIFY_CMD.
+vd() { local prof="$1" d; shift; d=$(newrepo); (cd "$d" && eval "$*"); bash "$SC" "$d" guardrails --profile "$prof" >"$d.log" 2>&1
+  bash "$d/.claude/hooks/harness-conf.sh" VERIFY_CMD "<missing>"; }
+PJ='{"scripts":{"typecheck":"tsc --noEmit","lint":"eslint .","test":"vitest run"}}'
+[ "$(vd product "printf '%s' '$PJ' > package.json")" = "npm run typecheck && npm run lint" ]; check "product + package.json: typecheck && lint" $?
+[ "$(vd product "printf '%s' '{\"scripts\":{\"lint\":\"eslint .\"}}' > package.json")" = "npm run lint" ]; check "product + package.json: only the scripts that exist" $?
+[ "$(vd product "printf '%s' '$PJ' > package.json; touch pnpm-lock.yaml")" = "pnpm run typecheck && pnpm run lint" ]; check "product + pnpm lockfile: pnpm run" $?
+[ "$(vd assignment "printf '%s' '$PJ' > package.json")" = "npm test" ]; check "assignment + package.json test script: npm test" $?
+[ "$(vd assignment "printf '%s' '{\"scripts\":{\"test\":\"echo \\\"Error: no test specified\\\" && exit 1\"}}' > package.json")" = "" ]; check "assignment: the npm init placeholder test is not chosen" $?
+[ "$(vd assignment "printf 'test:\n\tpytest\n' > Makefile")" = "make test" ]; check "assignment + Makefile test target: make test" $?
+[ "$(vd product "printf 'lint:\n\truff .\n' > Makefile")" = "make lint" ]; check "product + Makefile lint target: make lint" $?
+[ "$(vd assignment "touch Cargo.toml")" = "cargo test" ]; check "assignment + Cargo.toml: cargo test" $?
+[ "$(vd product "touch go.mod")" = "go vet ./..." ]; check "product + go.mod: go vet" $?
+[ "$(vd assignment "touch pyproject.toml")" = "python3 -m pytest -q" ]; check "assignment + pyproject.toml: pytest" $?
+[ "$(vd product "printf '[tool.ruff]\n[tool.mypy]\n' > pyproject.toml")" = "ruff check . && mypy ." ]; check "product + pyproject ruff and mypy" $?
+[ "$(vd product "touch pyproject.toml")" = "" ]; check "product + plain pyproject: empty (no guess)" $?
+[ "$(vd prototype "printf '%s' '$PJ' > package.json")" = "" ]; check "prototype: never detected (verify off)" $?
+d=$(newrepo); printf '%s' "$PJ" > "$d/package.json"; bash "$SC" "$d" guardrails --profile assignment --verify-cmd 'make check' >/dev/null 2>&1
+[ "$(bash "$d/.claude/hooks/harness-conf.sh" VERIFY_CMD x)" = "make check" ]; check "--verify-cmd wins over detection" $?
+d=$(newrepo); printf '%s' "$PJ" > "$d/package.json"; out=$(bash "$SC" "$d" guardrails --profile product 2>&1)
+grep -q '^  note    VERIFY_CMD detected: npm run typecheck && npm run lint' <<<"$out"; check "a detected VERIFY_CMD is reported as a note" $?
+
+echo "The CI profile check reads harness.conf like the hooks"
+d=$(newrepo); bash "$SC" "$d" guardrails --profile product >/dev/null 2>&1
+YML="$d/.github/workflows/dev-harness-hooks.yml"
+# The run: block of the step, de-indented, exactly as CI runs it.
+awk '/- name: harness.conf matches its profile/ {f=1; next} f && /^      - name:/ {exit} f && /^        run: \|/ {r=1; next} r {sub(/^          /, ""); print}' "$YML" > "$W/ci-step.sh"
+grep -q 'harness-conf.sh' "$W/ci-step.sh"; check "the CI step was extracted and uses harness-conf.sh" $?
+ci() { (cd "$d" && bash "$W/ci-step.sh" >/dev/null 2>&1); echo $?; }   # 0 = CI passes
+for v in 'BLOCK_MAIN="0"' 'BLOCK_MAIN=0' ' BLOCK_MAIN = 0 ' $'BLOCK_MAIN=0\r' $'BLOCK_MAIN=1\nBLOCK_MAIN=0' \
+         'BLOCK_MAIN=1' 'BLOCK_MAIN="1"' 'BLOCK_MAIN=true' 'BLOCK_MAIN=' '# BLOCK_MAIN missing'; do
+  for pl in 'PROFILE=product' 'PROFILE="product"' ' PROFILE = product'; do
+    printf '%s\n%s\n' "$pl" "$v" > "$d/.claude/hooks/harness.conf"
+    c=$(ci); e=$(edit_on_main "$d")
+    # CI must fail exactly when the product project's own hook lets an edit on main through.
+    { [ "$c" != 0 ] && [ "$e" = 0 ]; } || { [ "$c" = 0 ] && [ "$e" = 2 ]; }
+    check "CI and hooks agree on [$pl | $(printf '%s' "$v" | tr '\r\n' '^|')] (ci=$c hook=$e)" $?
+  done
+done
+printf 'PROFILE=product\nBLOCK_MAIN="0"\n' > "$d/.claude/hooks/harness.conf"; [ "$(ci)" != 0 ]; check 'CI fails: product with BLOCK_MAIN="0"' $?
+mv "$d/.claude/hooks/harness-conf.sh" "$d/hc.off"; printf 'PROFILE=product\nBLOCK_MAIN=1\n' > "$d/.claude/hooks/harness.conf"
+[ "$(ci)" != 0 ]; check "CI fails when harness-conf.sh is missing" $?
+
+echo "Upgrade: 1.0.1 hooks stay, the parser is added"
+d=$(newrepo); mkdir -p "$d/.claude/hooks"
+for h in protect-paths guard-bash verify format test-hooks; do   # every hook file a 1.0.1 project has
+  git -C "$ROOT" show "v1.0.1:plugins/dev-harness/templates/project/.claude/hooks/$h.sh" > "$d/.claude/hooks/$h.sh" 2>/dev/null; chmod +x "$d/.claude/hooks/$h.sh"
+done
+if [ -s "$d/.claude/hooks/protect-paths.sh" ]; then
+  out=$(bash "$SC" "$d" guardrails --profile product 2>&1); st=$?
+  grep -q '^  skip    .claude/hooks/protect-paths.sh' <<<"$out" && grep -q '^  add     .claude/hooks/harness-conf.sh' <<<"$out"; check "upgrade: old hooks skipped, harness-conf.sh added" $?
+  [ "$(edit_on_main "$d")" = 2 ]; check "upgrade: the 1.0.1 protect-paths.sh still blocks main" $?
+  [ $st = 0 ]; check "upgrade: scaffold and the new hook tests pass over the old hooks" $?
+else
+  echo "  SKIP  upgrade from v1.0.1 (tag not in this clone)"
+fi
+
 
 echo "Bad input"
 bash "$SC" "$W/missing" files --profile product >/dev/null 2>&1; [ $? -ne 0 ]; check "missing dir fails" $?
