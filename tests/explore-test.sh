@@ -215,6 +215,17 @@ val 12; out=$(ex keep "hunch" 12); [ "$(rowcount kept)" = 0 ] && grep -q 'needs 
 echo "hot: parse() 80%" > "$W/prof.txt"; ex keep "cache parse" 12 "memo" --evidence "$W/prof.txt" >/dev/null
 [ "$(rowcount kept)" = 1 ] && grep -q "memo; evidence: $W/prof.txt" "$D/docs/experiments.md"; check "with evidence: kept, and the note names the file" $?
 newproj; ex baseline >/dev/null; val 12; ex keep "plain" 12 >/dev/null; [ "$(rowcount kept)" = 1 ]; check "without the optional lines, keep works as before" $?
+newproj; addline "- Correctness: false"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; out=$(ex keep v1 12); [ "$(rowcount kept)" = 0 ] && grep -q "Correctness" <<<"$out"; check "a Correctness line without backticks is refused, not ignored" $?
+newproj; addline "- Runs: three"; g add -A; g commit -q -m metric
+out=$(ex measure); [ "$(exs measure)" != 0 ] && grep -q "Runs" <<<"$out"; check "a Runs line without a number is refused, not ignored" $?
+newproj; addline "- Noise: a little"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; [ "$(exs keep v 12)" != 0 ] && [ "$(rowcount kept)" = 0 ]; check "a Noise line without a number is refused, not ignored" $?
+newproj; addline "- Evidence: yes please"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; [ "$(exs keep v 12)" != 0 ]; check "an Evidence line that is not 'required' is refused, not ignored" $?
+newproj; addline "- Noise: <set this from the baseline SPREAD>"; addline "- Correctness: \`<the test command>\`"; g add -A; g commit -q -m metric; ex baseline >/dev/null
+val 12; ex keep v 12 >/dev/null; [ "$(rowcount kept)" = 1 ]; check "template <placeholders> still count as not set" $?
+
 D=$(mktemp -d "$W/p.XXXX"); git -C "$D" init -q -b main; echo 10 > "$D/value.txt"; g add -A; g commit -q -m init
 printf '# Perf\n\n## Metric\n- Name: v\n- Measured by: `cat value.txt`\n- Direction: higher is better\n- Target: none\n\n| Date | Variant | Metric | Result | Kept or reverted | Note |\n|---|---|---|---|---|---|\n' > "$W/perf-tpl.md"
 out=$(ex --file docs/perf.md --template "$W/perf-tpl.md" start p); [ -f "$D/docs/perf.md" ] && [ ! -e "$D/docs/experiments.md" ]; check "--file and --template: start creates docs/perf.md" $?

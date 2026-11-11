@@ -38,8 +38,13 @@ fi
 
 root="${CLAUDE_PROJECT_DIR:-$PWD}"
 cd "$root" || exit 0
+# Skip only a clean tree at the commit that last passed: a regression that was already committed is
+# still checked (the passing HEAD is remembered in .git/, so nothing in the project changes).
+mark=""; head=""
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  [ -z "$(git status --porcelain 2>/dev/null)" ] && exit 0
+  mark="$(git rev-parse --git-dir 2>/dev/null)/dev-harness-perf-guard.ok"
+  head=$(git rev-parse -q --verify HEAD 2>/dev/null)
+  if [ -z "$(git status --porcelain 2>/dev/null)" ] && [ -n "$head" ] && [ "$(cat "$mark" 2>/dev/null)" = "$head" ]; then exit 0; fi
 fi
 
 LIMIT="${DH_PERF_TIMEOUT:-240}"; case "$LIMIT" in ''|*[!0-9]*|0) LIMIT=240 ;; esac
@@ -86,4 +91,6 @@ if awk -v w="$worse" -v p="$PCT" 'BEGIN {exit !(w > p)}'; then
   } >&2
   exit 2
 fi
+# Remember a passing clean HEAD, so the next stop with nothing new skips the benchmark.
+if [ -n "$mark" ] && [ -n "$head" ] && [ -z "$(git status --porcelain 2>/dev/null)" ]; then printf '%s\n' "$head" > "$mark" 2>/dev/null; fi
 exit 0

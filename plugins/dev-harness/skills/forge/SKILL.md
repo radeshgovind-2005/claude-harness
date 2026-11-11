@@ -3,7 +3,7 @@ name: forge
 description: Propose a new part for this project's harness — a hook, skill, agent or path-scoped rule — when a gap keeps coming back. Every part has a filled spec and tests, and a script refuses it unless the tests pass and fail without the part. Creates nothing without the user's yes; installing always asks.
 when_to_use: The same lesson was recorded twice, a hook misfired, discovery or brainstorming found a recurring need, or the user asks for a new rule, procedure, reviewer or folder rule. Not for a one-time task.
 argument-hint: "[the gap or mistake, or a part folder to check or install]"
-allowed-tools: Read(/${CLAUDE_PLUGIN_ROOT}/skills/forge/part-spec.md) Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/forge.sh check *) Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/forge.sh list *)
+allowed-tools: Read(/${CLAUDE_PLUGIN_ROOT}/skills/forge/part-spec.md) Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/forge.sh list *)
 ---
 
 Forge a new part of this project's harness. Input: $ARGUMENTS
@@ -30,9 +30,9 @@ On a yes, write the part in `.claude/forge/<name>/` (kebab-case name), and nowhe
 
 - `spec.md` from `${CLAUDE_PLUGIN_ROOT}/skills/forge/part-spec.md`. Fill every section with this project's facts. Status `experimental`, uses `0`.
 - `files/`: what gets installed (one hook script; a `SKILL.md`; an agent `<name>.md` with `tools:` and no edit tool; a rule `<name>.md` with `paths:`).
-- `tests/*.sh` (executable): each exits 0 when the part works. Use `"$FILES_DIR/<file>"`, not a project path. At least one test must fail if the part is broken or missing: test what the part does, not that the file exists.
+- `tests/*.sh` (executable): each exits 0 when the part works. Use `"$FILES_DIR/<file>"`, not a project path. At least one test must fail if the part is broken or missing: test what the part does, not that the file exists. `forge.sh check` empties `files/` and requires a failing test, but a test that only checks that a file is non-empty would satisfy it: that proves nothing, so do not write one.
 
-Then run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/forge.sh check .claude/forge/<name>` and show the output. Fix what it reports. Never weaken a test or a spec field to make it pass; if the part cannot meet the bar, say so and stop.
+Then run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/forge.sh check .claude/forge/<name>` and show the output. `check` runs the part's tests, which are code you just wrote, so it is not pre-approved: Claude Code asks the user, who can read the tests first. Fix what it reports. Never weaken a test or a spec field to make it pass; if the part cannot meet the bar, say so and stop.
 
 ## 3. Install (the user approves)
 

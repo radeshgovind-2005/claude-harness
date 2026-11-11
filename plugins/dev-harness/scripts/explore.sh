@@ -114,11 +114,29 @@ correctness_cmd() {
 }
 evidence_required() { grep -qi '^- *Evidence *: *required' "$EXP" 2>/dev/null; }
 
+# opt_value LABEL: the text after "- LABEL:", trimmed; nothing if the line is missing or a <placeholder>.
+opt_value() {
+  local l; l=$(grep -m1 -i "^- *$1 *:" "$EXP" 2>/dev/null) || return 0
+  l="${l#*:}"; l="${l#"${l%%[![:space:]]*}"}"; l="${l%"${l##*[![:space:]]}"}"
+  case "$l" in "<"*|"\`<"*) return 0 ;; esac
+  printf '%s' "$l"
+}
+# check_optional: an optional line that is present must be readable, or it would be silently ignored.
+check_optional() {
+  local v
+  v=$(opt_value Runs);        [ -z "$v" ] || [[ "$v" =~ ^[1-9][0-9]*$ ]] || die "$EXP: 'Runs: $v' must be a whole number (or remove the line)"
+  v=$(opt_value Noise);       [ -z "$v" ] || [[ "$v" =~ ^[0-9]+(\.[0-9]+)?%?$ ]] || die "$EXP: 'Noise: $v' must be a percent such as 3% (or remove the line)"
+  v=$(opt_value Correctness); [ -z "$v" ] || [[ "$v" =~ ^\`.+\`$ ]] || die "$EXP: 'Correctness: $v' must be a command in backticks, such as \`npm test\` (or remove the line)"
+  v=$(opt_value Evidence);    [ -z "$v" ] || [ "$(tr '[:upper:]' '[:lower:]' <<<"$v")" = required ] || die "$EXP: 'Evidence: $v' must say required (or remove the line)"
+  return 0
+}
+
 need_metric() {
   [ -f "$EXP" ] || die "$EXP not found. Run: explore.sh start <slug>"
   CMD=$(metric_cmd) || die "$EXP: 'Measured by' has no command in backticks"
   DIR=$(direction) || die "$EXP: 'Direction' must say exactly one of: higher is better, lower is better"
   TARGET=$(target)
+  check_optional
 }
 
 # beats VALUE BEST: strictly better in the stated direction

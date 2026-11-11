@@ -46,6 +46,17 @@ section() { # FILE NAME: body of "## NAME" without comments and blank lines
   tr -d '\r' < "$1" | awk -v n="## $2" '$0==n {on=1; next} on && /^## / {exit} on {print}' \
     | sed -e 's/<!--.*-->//g' | grep -v '^[[:space:]]*$'
 }
+# fm_block FILE KEY: the value of KEY plus any indented list lines under it ("paths:\n  - a"), one per line.
+fm_block() {
+  tr -d '\r' < "$1" | awk -v k="$2" 'NR==1 && $0!="---" {exit} NR>1 && /^---[[:space:]]*$/ {exit}
+    NR>1 && on && /^[[:space:]]+-/ {v=$0; sub(/^[[:space:]]+-[[:space:]]*/, "", v); print v; next}
+    NR>1 { on=0; i=index($0, ":"); if (i && substr($0,1,i-1)==k) { on=1; v=substr($0,i+1); sub(/^[[:space:]]+/,"",v); if (v != "") print v } }'
+}
+# tool_names "Read, [Grep]" -> one bare tool name per line ([], quotes and the (specifier) removed).
+tool_names() { tr -d '[]"\047' <<<"$1" | tr ',' '\n' | tr ' ' '\n' | sed -E 's/\(.*$//' | grep -v '^$'; }
+READ_ONLY_TOOLS=" Read Grep Glob Bash WebFetch WebSearch "
+# non_ro_tools LIST: the tools in LIST that are not read-only (no case inside $(): bash 3.2 misparses it).
+non_ro_tools() { tool_names "$1" | grep -vxE 'Read|Grep|Glob|Bash|WebFetch|WebSearch'; }
 setfm() { # FILE KEY VALUE: replace a frontmatter line in place
   local tmp; tmp=$(mktemp) || return 1
   awk -v k="$2" -v v="$3" 'NR==1 {print; next} !e && /^---/ {e=1} !e && index($0, k ":")==1 {print k ": " v; next} {print}' "$1" > "$tmp" \
@@ -79,7 +90,7 @@ do_check() { # DIR -> say lines; sets TYPE NAME
     ev=$(fm "$s" event); tm=$(fm "$s" timeout)
     case "$EVENTS" in *" $ev "*) ;; *) bad="$bad event(a hook event such as PreToolUse or Stop)" ;; esac
     has_fm_key "$s" matcher || bad="$bad matcher(may be empty, but the key must be there)"
-    [[ "$tm" =~ ^[0-9]+$ ]] || bad="$bad timeout(seconds)"
+    [[ "$tm" =~ ^[1-9][0-9]*$ ]] || bad="$bad timeout(seconds, a whole number without a leading zero)"
   fi
   if [ -n "$bad" ]; then say FAIL "spec frontmatter" "missing or invalid:$bad"; else say PASS "spec frontmatter" "$name ($type, $status, uses $uses)"; fi
   bad=""
@@ -101,24 +112,33 @@ do_check() { # DIR -> say lines; sets TYPE NAME
     case "$type" in
       hook)
         n=$(find "$d/files" -maxdepth 1 -name '*.sh' | wc -l | tr -d ' ')
+        v=$(find "$d/files" -mindepth 1 | wc -l | tr -d ' ')
         if [ "$n" != 1 ]; then say FAIL "files" "a hook part has exactly one files/*.sh (found $n)"
+        elif [ "$v" != 1 ]; then say FAIL "files" "a hook part's files/ holds only its script: only that file is installed (found $v entries)"
         elif [ ! -x "$(find "$d/files" -maxdepth 1 -name '*.sh')" ]; then say FAIL "files" "files/*.sh is not executable"
         else say PASS "files" "one executable hook script"; fi ;;
       skill)
         if [ ! -f "$d/files/SKILL.md" ]; then say FAIL "files" "a skill part needs files/SKILL.md"
         elif [ "$(fm "$d/files/SKILL.md" name)" != "$name" ] || [ -z "$(fm "$d/files/SKILL.md" description)" ]; then
           say FAIL "files" "files/SKILL.md needs name: $name and a description"
+        elif has_fm_key "$d/files/SKILL.md" hooks; then
+          say FAIL "files" "a forged skill declares no hooks: (a hook is its own part, registered and tested as one)"
+        elif tool_names "$(fm_block "$d/files/SKILL.md" allowed-tools)" | grep -Eqx 'Bash|Edit|Write|MultiEdit|NotebookEdit' \
+             && grep -Eq '(^|[ ,])(Bash|Edit|Write|MultiEdit|NotebookEdit)([ ,]|$)' <<<"$(fm_block "$d/files/SKILL.md" allowed-tools | tr '\n' ' ')"; then
+          say FAIL "files" "a forged skill pre-approves only scoped tools, such as Bash(npm test *) or Edit(docs/x.md), never bare Bash, Edit or Write"
         else say PASS "files" "SKILL.md with name and description"; fi ;;
       agent)
         v="$d/files/$name.md"
         if [ ! -f "$v" ]; then say FAIL "files" "an agent part needs files/$name.md"
-        elif [ -z "$(fm "$v" tools)" ] || [ -z "$(fm "$v" description)" ]; then say FAIL "files" "files/$name.md needs tools: (listed explicitly) and a description"
-        elif grep -Eqi '(^|[ ,])(Edit|Write|MultiEdit|NotebookEdit)([ ,(]|$)' <<<"$(fm "$v" tools)"; then say FAIL "files" "an agent gets no edit tool (tools: $(fm "$v" tools))"
+        elif [ -z "$(fm_block "$v" tools)" ] || [ -z "$(fm "$v" description)" ]; then say FAIL "files" "files/$name.md needs tools: (listed explicitly) and a description"
+        elif has_fm_key "$v" hooks || has_fm_key "$v" mcpServers; then say FAIL "files" "a forged agent declares no hooks: or mcpServers:"
+        elif [ -n "$(non_ro_tools "$(fm_block "$v" tools)")" ]; then
+          say FAIL "files" "an agent gets no edit tool, only read-only tools ($READ_ONLY_TOOLS); found: $(tool_names "$(fm_block "$v" tools)" | tr '\n' ' ')"
         else say PASS "files" "agent with an explicit, read-only tools list"; fi ;;
       rule)
         v="$d/files/$name.md"
         if [ ! -f "$v" ]; then say FAIL "files" "a rule part needs files/$name.md"
-        elif ! has_fm_key "$v" paths; then say FAIL "files" "files/$name.md needs paths: in its frontmatter (a rule for one folder or file type)"
+        elif [ -z "$(fm_block "$v" paths)" ]; then say FAIL "files" "files/$name.md needs paths: in its frontmatter (a rule for one folder or file type)"
         else say PASS "files" "rule with paths:"; fi ;;
       *) say FAIL "files" "unknown type, files not checked" ;;
     esac
@@ -210,8 +230,30 @@ case "$cmd" in
     R=$(project_root); name="$NAME"; type="$TYPE"; tgt=$(target_of "$type" "$name")
     [ -e "$R/$tgt" ] || [ -L "$R/$tgt" ] && die "$tgt already exists: forge never overwrites. Compare it with $src/files, then move it aside yourself if the new part should replace it"
     stage="$R/.claude/forge/$name"
+    [ "$src" != "$stage" ] && [ -e "$stage" ] && die ".claude/forge/$name already exists (another part with this name)"
+    # Prepare everything that can fail BEFORE anything is copied, so a refusal leaves the project unchanged
+    # and install can simply be run again: the registry file, and for a hook the new settings.json.
+    reg="$R/docs/parts.md"
+    if [ -f "$reg" ]; then
+      grep -q '<!-- parts:index:start -->' "$reg" && grep -q '<!-- parts:index:end -->' "$reg" \
+        || die "docs/parts.md has no <!-- parts:index:start/end --> markers: add them (see the template), then install again. Nothing was installed"
+    fi
+    newset=""
+    if [ "$type" = hook ]; then
+      S="$R/.claude/settings.json"
+      ev=$(fm "$src/spec.md" event); mt=$(fm "$src/spec.md" matcher); tm=$(fm "$src/spec.md" timeout)
+      c="\"\$CLAUDE_PROJECT_DIR\"/$tgt"
+      newset=$(mktemp) || die "mktemp failed"
+      if [ -f "$S" ]; then cp "$S" "$newset"; else printf '{}\n' > "$newset"; fi
+      jq --arg ev "$ev" --arg mt "$mt" --arg c "$c" --argjson tm "$tm" '
+        if type != "object" or ((.hooks // {}) | type) != "object" or ((.hooks[$ev] // []) | type) != "array" then error("unexpected shape") else . end
+        | .hooks //= {} | .hooks[$ev] //= []
+        | if ([.hooks[$ev][]?.hooks[]?.command] | index($c)) then .
+          else .hooks[$ev] += [ (if $mt == "" then {} else {matcher: $mt} end) + {hooks: [{type: "command", command: $c, timeout: $tm}]} ] end' \
+        "$newset" > "$newset.out" 2>/dev/null && jq empty "$newset.out" 2>/dev/null \
+        || { rm -f "$newset" "$newset.out"; die ".claude/settings.json cannot take the hook (not valid JSON, or .hooks.$ev is not a list). Fix it, then install again. Nothing was installed"; }
+    fi
     if [ "$src" != "$stage" ]; then
-      [ -e "$stage" ] && die ".claude/forge/$name already exists (another part with this name)"
       mkdir -p "$R/.claude/forge" && cp -RL "$src" "$stage" || die "could not stage the part in $stage"
       say PASS "staged" ".claude/forge/$name (spec, files, tests stay here)"
     fi
@@ -219,18 +261,8 @@ case "$cmd" in
       hook)
         mkdir -p "$R/.claude/hooks"
         cp "$(find "$stage/files" -maxdepth 1 -name '*.sh')" "$R/$tgt" && chmod +x "$R/$tgt" || die "could not copy the hook"
-        S="$R/.claude/settings.json"
-        [ -f "$S" ] || printf '{}\n' > "$S"
-        jq empty "$S" 2>/dev/null || die ".claude/settings.json is not valid JSON; fix it first (the hook file was copied, not registered)"
-        ev=$(fm "$stage/spec.md" event); mt=$(fm "$stage/spec.md" matcher); tm=$(fm "$stage/spec.md" timeout)
-        c="\"\$CLAUDE_PROJECT_DIR\"/$tgt"
-        tmp=$(mktemp) || die "mktemp failed"
-        jq --arg ev "$ev" --arg mt "$mt" --arg c "$c" --argjson tm "$tm" '
-          .hooks //= {} | .hooks[$ev] //= []
-          | if ([.hooks[$ev][]?.hooks[]?.command] | index($c)) then .
-            else .hooks[$ev] += [ (if $mt == "" then {} else {matcher: $mt} end) + {hooks: [{type: "command", command: $c, timeout: $tm}]} ] end' \
-          "$S" > "$tmp" && jq empty "$tmp" && cat "$tmp" > "$S" || { rm -f "$tmp"; die "could not register the hook in .claude/settings.json"; }
-        rm -f "$tmp"
+        cat "$newset.out" > "$S" || die "could not write .claude/settings.json"
+        rm -f "$newset" "$newset.out"
         say PASS "installed" "$tgt, registered for $ev${mt:+ ($mt)} in .claude/settings.json" ;;
       skill) mkdir -p "$R/$tgt" && cp -RL "$stage/files/." "$R/$tgt/" || die "could not install the skill"; say PASS "installed" "$tgt/ (as /$name)" ;;
       agent|rule) mkdir -p "$(dirname "$R/$tgt")" && cp "$stage/files/$name.md" "$R/$tgt" || die "could not install"; say PASS "installed" "$tgt" ;;
@@ -241,7 +273,8 @@ case "$cmd" in
   use)
     R=$(project_root); s=$(staged "$R" "${ARGS[0]:-}") || exit 1
     [ -e "$R/$(target_of "$(fm "$s" type)" "${ARGS[0]}")" ] || die "${ARGS[0]} is not installed: only an installed part can have a real use"
-    n=$(fm "$s" uses); setfm "$s" uses $((n + 1)) || die "could not update $s"
+    n=$(fm "$s" uses); [[ "$n" =~ ^[0-9]+$ ]] || die "uses in $s is not a whole number ('$n'); fix it by hand"
+    setfm "$s" uses $((n + 1)) || die "could not update $s"
     write_registry "$R"; say PASS "use" "${ARGS[0]}: uses $n -> $((n + 1))"
     summary ;;
 
@@ -251,7 +284,7 @@ case "$cmd" in
       proven)
         do_check "$(dirname "$s")"
         [ "$f" -eq 0 ] || { summary; die "the part does not pass check"; }
-        n=$(fm "$s" uses); [ "$n" -ge 3 ] || die "${ARGS[0]} has $n real use(s): proven needs at least 3 (forge.sh use ${ARGS[0]} after each)" ;;
+        n=$(fm "$s" uses); [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 3 ] || die "${ARGS[0]} has $n real use(s): proven needs at least 3 (forge.sh use ${ARGS[0]} after each)" ;;
       experimental) ;;
       *) die "status needs proven or experimental" ;;
     esac
@@ -273,6 +306,7 @@ case "$cmd" in
   promote)
     R=$(project_root); name="${ARGS[0]:-}"; s=$(staged "$R" "$name") || exit 1
     [ -n "$TO" ] && [ -n "$PLUG" ] || die "promote needs --to <marketplace clone> and --plugin <plugin name>"
+    [[ "$PLUG" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || die "--plugin must be a plugin name (kebab-case), not a path: '$PLUG'"
     [ "$(fm "$s" status)" = proven ] || die "$name is $(fm "$s" status): only a proven part is promoted (forge.sh status $name proven)"
     do_check "$(dirname "$s")"
     [ "$f" -eq 0 ] || { summary; die "the part does not pass check"; }

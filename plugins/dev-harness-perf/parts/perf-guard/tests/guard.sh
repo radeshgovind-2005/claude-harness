@@ -37,8 +37,14 @@ c "a benchmark that prints no number: blocks"           2 "$(run)"
 conf 'PERF_CMD="sleep 30"' PERF_BASELINE=100 PERF_RUNS=2
 c "a benchmark over the time limit: blocks"             2 "$(echo '{}' | DH_PERF_TIMEOUT=1 CLAUDE_PROJECT_DIR="$T" bash "$T/.claude/hooks/perf-guard.sh" 2>/dev/null; echo $?)"
 conf 'PERF_CMD="cat value.txt"' PERF_BASELINE=100
-git -C "$T" add -A >/dev/null; git -C "$T" -c user.email=t@t -c user.name=t commit -q -m all
-c "a clean tree: the benchmark is skipped"              0 "$(run)"
+gc() { git -C "$T" add -A >/dev/null; git -C "$T" -c user.email=t@t -c user.name=t commit -q -m "$1"; }
+echo 120 > "$T/value.txt"; gc "slower, committed"
+c "a committed regression (clean tree, new HEAD) blocks" 2 "$(run)"
+echo 101 > "$T/value.txt"; gc "fast again"
+c "a clean tree at a new HEAD is checked and passes"     0 "$(run)"
+echo 300 > "$T/value.txt"; git -C "$T" update-index --assume-unchanged value.txt
+c "a clean tree at the HEAD that last passed is skipped" 0 "$(run)"
+git -C "$T" update-index --no-assume-unchanged value.txt; git -C "$T" checkout -q -- value.txt
 touch "$T/new"; rm "$T/.claude/hooks/harness-conf.sh"
 c "no parser: says so (blocks once)"                    2 "$(run)"
 echo "perf-guard tests: $pass passed, $fail failed"

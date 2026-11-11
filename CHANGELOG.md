@@ -21,6 +21,17 @@ A self-evolving harness. The template is the starting point; as a project grows,
 - `lesson` suggests `forge` when the same mistake comes back; `discover` notes recurring needs as candidate parts.
 - Suites `tests/forge-test.sh` and `tests/perf-test.sh` in `run-all.sh` and CI. `validate.sh` checks a plugin against its own `CHANGELOG.md` when it has one, and fails on a symlink that dangles or leaves the marketplace.
 
+### Fixed before release (fresh-context skeptic review; each case reproduced as a failing test first)
+- `forge.sh check` runs a part's tests as code, so the `forge` skill no longer pre-approves it.
+- An agent part may list only read-only tools; `[Read, Write]`, quoted names and MCP tools were let through.
+- A skill part may not declare `hooks:` or pre-approve bare `Bash`, `Edit` or `Write`; a rule needs a non-empty `paths:`; a hook part's `files/` holds only its script; a timeout with a leading zero is refused.
+- `install` prepares the settings change and checks the registry before it copies anything, so a refusal leaves nothing half-installed and can be retried.
+- `promote --plugin` must be a plugin name (`../..` wrote outside the clone); `use` refuses a non-numeric `uses` (it was evaluated as shell arithmetic).
+- The `guard-bash.sh` forge ask also catches a quoted subcommand, a variable or a glob for the script path (still best-effort).
+- `explore.sh`: an optional Metric line that is present but unreadable (`Correctness: false` without backticks, `Runs: three`) stops with an error instead of being ignored; template `<placeholders>` still count as not set.
+- `perf-guard` also checks a clean tree when HEAD moved since its last pass, so a regression that was already committed is caught.
+- Documented, not changed: the emptied-files rule cannot tell a real test from one that only checks a file is not empty; evidence files are checked for existence, not content; artifacts of the Correctness command are committed with a kept variant unless ignored; a best value of 0 disables the Noise threshold.
+
 ## 1.1.0 — 2026-11-11
 
 Stateful, parallel work. State lives in task cards in `docs/tasks/`, not in the conversation: a session is disposable, a card is not. Any session or person picks up one card with a small context, and long work prefers handoff, `/clear` and resume over compaction. Nothing frozen in `docs/stability.md` changed; the new skills, part, hooks and card format are additions.

@@ -93,7 +93,11 @@ fi
 # --- Ask the user first ---
 # forge.sh install, status and promote write guarded files (hooks, settings, the registry, a marketplace
 # clone): installing a new part is the user's decision, so it always asks. This is the approval gate.
-grep -Eq 'forge\.sh[[:space:]]+(install|status|promote)([[:space:]]|$)' <<<"$cmd" && ask "This installs, promotes or changes the status of a harness part (forge.sh). Only the user approves that."
+# Quotes are removed first and the match is loose ("forge" anywhere, then the word), so "install",
+# 'install', $F install and ./forge* install all ask. Best-effort like the rest of this list.
+fq=$(tr -d "\"'" <<<"$cmd")
+grep -q 'forge' <<<"$fq" && grep -Eq '(^|[[:space:];&|])(install|status|promote)([[:space:];&|]|$)' <<<"$fq" \
+  && ask "This may install, promote or change the status of a harness part (forge.sh). Only the user approves that."
 grep -Eq 'git[[:space:]]+reset[[:space:]]+--hard'   <<<"$cmd" && ask "git reset --hard deletes uncommitted work."
 grep -Eq 'git[[:space:]]+clean[[:space:]]+-[a-z]*f' <<<"$cmd" && ask "git clean deletes untracked files."
 grep -Eiq '(drop|truncate)[[:space:]]+(table|database)' <<<"$cmd" && ask "This command deletes database data."
