@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse (Edit|Write|NotebookEdit), registered by the discover skill.
+# PreToolUse (Edit|Write|MultiEdit|NotebookEdit), registered by the discover skill (same matcher as SKILL.md).
 # While docs/intent.md has "status: discovering", block edits to every file
 # except docs/intent.md. Discover is for understanding, not building.
 # Does nothing when docs/intent.md is absent or "status: decided".
