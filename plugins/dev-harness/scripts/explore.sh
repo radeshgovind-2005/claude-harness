@@ -3,10 +3,13 @@
 # this script measures them, decides keep or revert, logs, and says when to stop.
 #
 # Usage (run inside the project):
-#   explore.sh start <slug>                       branch (if on main/master), create docs/experiments.md
-#   explore.sh baseline [--runs N]                measure and record the baseline row
+#   explore.sh [--file F] [--template T] <subcommand> ...   F: the log (default docs/experiments.md);
+#                                                 T: what start copies when F does not exist
+#   explore.sh start <slug>                       branch (if on main/master), create the log
+#   explore.sh baseline [--runs N]                measure and record the baseline row (prints SPREAD=)
 #   explore.sh measure [--runs N]                 run the metric; prints VALUE=<n> (median of N runs)
-#   explore.sh keep   <variant> <value> [note]    value must beat the best so far; commits variant + log row
+#   explore.sh keep   <variant> <value> [note] [--evidence FILE]
+#                                                 value must beat the best so far; commits variant + log row
 #   explore.sh revert <variant> <value> [note]    restore the tree to HEAD; logs the row
 #   explore.sh status                             BASELINE, BEST, NO_PROGRESS, STOP=yes|no, REASON
 #
@@ -14,6 +17,11 @@
 #   - Measured by: `<command>`      run from the project root; the last number on its last output line is the value
 #   - Direction: higher is better   (or: lower is better)
 #   - Target: <number or none>      optional
+# Optional Metric lines (each one is enforced when present):
+#   - Runs: <N>                     baseline and measure refuse fewer than N runs (no single cold run)
+#   - Noise: <P>%                   keep needs a gain larger than P% of the best value, not just any gain
+#   - Correctness: `<command>`      keep refuses unless this exits 0 (the tests still pass)
+#   - Evidence: required            keep needs --evidence FILE, an existing non-empty file (profiler output)
 # The log table rows are: | Date | Variant | Metric | Result | Kept or reverted | Note |
 #
 # Rules enforced here, not in prose: a variant is kept only if it beats the best value; the loop stops
@@ -31,7 +39,15 @@ PLUGIN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=lib.sh
 . "$PLUGIN/scripts/lib.sh"
 
-EXP="docs/experiments.md"
+EXP="docs/experiments.md"; TEMPLATE="$PLUGIN/templates/project/docs/experiments.md"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --file) [ $# -ge 2 ] || { echo "FAIL    --file needs a value" >&2; exit 1; }; EXP="$2"; shift 2 ;;
+    --template) [ $# -ge 2 ] || { echo "FAIL    --template needs a value" >&2; exit 1; }; TEMPLATE="$2"; shift 2 ;;
+    *) break ;;
+  esac
+done
+case "$EXP" in /*|../*|*/../*|*/..|..) echo "FAIL    --file must be a path inside the project, relative to its root: $EXP" >&2; exit 1 ;; esac
 MAX_NO_PROGRESS=2
 TIMEOUT="${EXPLORE_TIMEOUT:-600}"
 
@@ -89,6 +105,15 @@ best_value() { rows | awk -F'\t' '$4 == "baseline" || $4 == "kept" { b = $3 } EN
 has_baseline() { rows | awk -F'\t' '$4 == "baseline" { f = 1 } END { exit !f }'; }
 no_progress() { rows | awk -F'\t' '{ s[NR] = $4 } END { n = 0; for (i = NR; i >= 1 && s[i] == "reverted"; i--) n++; print n }'; }
 
+# Optional Metric lines.
+runs_min() { local l; l=$(grep -m1 -i '^- *Runs *:' "$EXP" 2>/dev/null) || return 0; last_number "${l#*:}" | head -n1; }
+noise_pct() { local l; l=$(grep -m1 -i '^- *Noise *:' "$EXP" 2>/dev/null) || return 0; last_number "${l#*:}" | head -n1; }
+correctness_cmd() {
+  local l; l=$(grep -m1 -i '^- *Correctness *:' "$EXP" 2>/dev/null) || return 0
+  case "$l" in *\`*\`*) l="${l#*\`}"; l="${l%\`*}"; case "$l" in ""|"<"*) return 0 ;; esac; printf '%s' "$l" ;; esac
+}
+evidence_required() { grep -qi '^- *Evidence *: *required' "$EXP" 2>/dev/null; }
+
 need_metric() {
   [ -f "$EXP" ] || die "$EXP not found. Run: explore.sh start <slug>"
   CMD=$(metric_cmd) || die "$EXP: 'Measured by' has no command in backticks"
@@ -125,6 +150,10 @@ do_measure() { # [--runs N] -> prints VALUE=<median>
   done
   case "$runs" in ""|*[!0-9]*|0) die "--runs must be a positive integer" ;; esac
   need_metric
+  local min; min=$(runs_min)
+  if [ -n "$min" ] && [ "$runs" -lt "${min%%.*}" ]; then
+    die "$EXP says 'Runs: $min': measure at least $min times (--runs $min). One run is noise, not a number"
+  fi
   i=0
   while [ "$i" -lt "$runs" ]; do
     i=$((i + 1))
@@ -149,7 +178,12 @@ do_measure() { # [--runs N] -> prints VALUE=<median>
   done
   VALUE=$(printf '%s' "$vals" | sort -g | awk '{ a[NR] = $1 } END { if (NR % 2) print a[(NR + 1) / 2]; else printf "%.10g\n", (a[NR / 2] + a[NR / 2 + 1]) / 2 }')
   echo "VALUE=$VALUE"
-  [ "$runs" -gt 1 ] && echo "RUNS=$runs (median; all: $(printf '%s' "$vals" | tr '\n' ' '))"
+  if [ "$runs" -gt 1 ]; then
+    echo "RUNS=$runs (median; all: $(printf '%s' "$vals" | tr '\n' ' '))"
+    # Spread: (max - min) / |median|, in percent. A Noise threshold below it would keep noise as a gain.
+    printf '%s' "$vals" | sort -g | awk -v m="$VALUE" 'NR == 1 { lo = $1 } { hi = $1 }
+      END { a = (m < 0) ? -m : m; if (a > 0) printf "SPREAD=%.2f%%\n", (hi - lo) / a * 100; else print "SPREAD=n/a (median is 0)" }'
+  fi
   return 0
 }
 
@@ -171,7 +205,7 @@ case "$cmd" in
     fi
     if [ -e "$EXP" ]; then echo "  skip    $EXP (exists)"
     else
-      mkdir -p "$(dirname "$EXP")" && cp "$PLUGIN/templates/project/docs/experiments.md" "$EXP" || die "could not create $EXP"
+      mkdir -p "$(dirname "$EXP")" && cp "$TEMPLATE" "$EXP" || die "could not create $EXP from $TEMPLATE"
       echo "  add     $EXP (fill the Metric section: Name, Measured by, Direction, Target; then run baseline)"
     fi
     ;;
@@ -187,10 +221,18 @@ case "$cmd" in
     tmp=$(mktemp); grep -v '^| YYYY-MM-DD |' "$EXP" > "$tmp"; cat "$tmp" > "$EXP"; rm -f "$tmp"
     append_row "baseline" "$value" "—" "baseline" "Starting point"
     echo "  add     baseline row: $value"
+    sp=$(sed -n 's/^SPREAD=//p' <<<"$out"); [ -n "$sp" ] && echo "SPREAD=$sp (set Noise above this, so a kept variant beats the run-to-run noise)"
     ;;
 
   keep|revert)
-    variant="${1:-}"; value="${2:-}"; note="${3:-}"
+    evidence=""; pos=()
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --evidence) [ $# -ge 2 ] || die "--evidence needs a file"; evidence="$2"; shift 2 ;;
+        *) pos+=("$1"); shift ;;
+      esac
+    done
+    variant="${pos[0]:-}"; value="${pos[1]:-}"; note="${pos[2]:-}"
     [ -n "$variant" ] || die "$cmd needs a variant description"
     is_number "$value" || die "$cmd needs the measured value as a number (got '$value')"
     need_metric
@@ -201,7 +243,25 @@ case "$cmd" in
     delta=$(awk -v v="$value" -v b="$best" 'BEGIN { printf "%+.10g", v - b }')
     if [ "$cmd" = keep ]; then
       beats "$value" "$best" || die "$value does not beat the best so far ($best, $DIR is better). Use: explore.sh revert"
+      nz=$(noise_pct)
+      if [ -n "$nz" ]; then
+        gain=$(awk -v v="$value" -v b="$best" -v d="$DIR" 'BEGIN { a = (b < 0) ? -b : b; g = (d == "higher") ? v - b : b - v; if (a > 0) printf "%.4f", g / a * 100; else print "inf" }')
+        [ "$gain" = inf ] || num_cmp "$gain" '>' "$nz" || die "the gain is ${gain}% of the best value, within the noise threshold (Noise: ${nz}%). It is not a real improvement. Use: explore.sh revert"
+      fi
       [ -n "$(dirty_except_log)" ] || die "no changes to keep: the working tree equals HEAD"
+      if evidence_required; then
+        [ -n "$evidence" ] || die "$EXP says 'Evidence: required': keep needs --evidence <file> (the profiler output that motivated this change)"
+        [ -s "$evidence" ] || die "--evidence $evidence does not exist or is empty"
+        note="${note:+$note; }evidence: $evidence"
+      fi
+      cc=$(correctness_cmd)
+      if [ -n "$cc" ]; then
+        run_limited "$TIMEOUT" "$cc"
+        if [ "$RUN_TIMED_OUT" = 1 ] || [ "$RUN_RC" -ne 0 ]; then
+          echo "--- last 20 lines ---" >&2; printf '%s\n' "$RUN_OUT" | tail -n 20 >&2
+          die "the correctness check failed (Correctness: $cc). A faster wrong answer is not kept. Fix it, or: explore.sh revert"
+        fi
+      fi
       bak=$(mktemp); cat "$EXP" > "$bak"
       append_row "$variant" "$value" "$delta" "kept" "$note"
       errf=$(mktemp)
@@ -263,5 +323,5 @@ case "$cmd" in
     echo "STOP=$stop"; echo "REASON=$reason"
     ;;
 
-  *) sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || die "unknown subcommand: $cmd"; exit 1 ;;
+ *) sed -n -E '2,/^([^#]|$)/{/^#/s/^# ?//p;}' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [ -z "$cmd" ] || die "unknown subcommand: $cmd"; exit 1 ;;
 esac
