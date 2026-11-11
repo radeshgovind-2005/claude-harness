@@ -6,12 +6,54 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 
 Read this first when resuming. Update it at every checkpoint.
 
-- **Version:** 1.0.2 (audit fixes), merged into `main`, tagged `v1.0.2` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43017098908 and 43017097262), and installing from GitHub is verified (see "Verified after the push" in the v1.0.2 checkpoint). No GitHub release was created for it. Next milestones: v1.1.0 (task cards), v1.2.0 (forge, promote, perf pack), each planned before building. 1.0.1 is pushed and released on GitHub (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
+- **Version:** 1.1.0 (task cards), merged into `main` and tagged `v1.1.0` locally on 2026-11-11, NOT pushed yet (waiting for the user's yes), so its CI and the GitHub install are NOT VERIFIED. Next milestone: v1.2.0 (forge, promote, perf pack), planned before building. 1.0.2 (audit fixes) was merged into `main`, tagged `v1.0.2` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43017098908 and 43017097262), and installing from GitHub is verified (see "Verified after the push" in the v1.0.2 checkpoint). No GitHub release was created for it. 1.0.1 is pushed and released on GitHub (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
 - **Branches:** `main` is the release branch. `build/v0.1.0` to `build/v1.0.0` are the finished milestone branches. The old local branch `fix/ci-git-identity` was deleted on 2026-11-10 (its change was already on `main`, cd69265).
 - **Known quirk:** the `v0.4.0` tag points at `db84e15`, whose CI was red for one test (a missing git identity on runners). The fix is on `main` only; the tag was not moved.
 - **Release routine** (also in `docs/contributing.md`): branch `build/vX.Y.Z`, small commits, all suites (`tests/run-all.sh`), mutation checks, a fresh-context skeptic on `git diff main..build/vX.Y.Z`, CHANGELOG, a checkpoint here, merge, annotated tag, ask before pushing, then watch CI and install from GitHub in an isolated config.
 - **Open for the user:** run `/dev-harness:discover` on a real idea (the most valuable next test), then `/dev-harness:lesson` for what it missed.
 - **Still not verified anywhere:** a real interactive `discover`; native Windows; `designer` on a rendered screenshot; the `showcase` README `Edit` path with a real "yes".
+
+## Checkpoint v1.1.0 — 2026-11-11
+
+### Done
+- `scripts/tasks.sh`: `new`, `check`, `overlap`, `index`, `active`, `worktree`. Overlap intersects glob patterns per segment (`*`, `?`, `**`) and only ever widens them.
+- Card form `docs/tasks/_template.md` and `docs/tasks/INDEX.md` (part `tasks`, also in the full files phase); routes from the template `CLAUDE.md`, `docs/INDEX.md`, `docs/workflow.md`.
+- Project hooks in all three profiles: `task-context.sh` (SessionStart) and `task-compact.sh` (PreCompact).
+- Skills `split`, `handoff` (model may invoke), `resume`; `add tasks`; help, reference, stability, README ("Twelve skills"), how-it-works, getting-started (walkthrough 4), brief (section 16), contributing, CHANGELOG.
+- `validate.sh`: the profiles register the same hooks; every project hook is registered.
+- Example `examples/13-task-cards.md`.
+- Not added, after the docs: a Stop reminder (a Stop hook cannot be both non-blocking and visible to Claude).
+
+### Verified
+- `tests/run-all.sh` (full) on the final tree: validate 79, docs 83, explore 83, lens 44, goal 60, showcase 131, tasks 118, scaffold 278 (the project hook tests run in every scaffold: 285 per scaffold). PASSED: all suites.
+- `tests/tasks-test.sh` 118 checks; `test-hooks.sh` (bash 3.2) 285 checks; `claude plugin validate .` and `--strict` pass; `shellcheck -S warning` clean on every script.
+- **Headless smoke tests** (`claude -p --plugin-dir`, a toy Python project, two full runs; the second is `examples/13`):
+  - `split` wrote three cards and `check` passed. The first run had one permission denial (a chained `T="bash ..."; $T new` call missed the pre-approval); after the skill fix the second run had none.
+  - `resume 001` set `.claude/active-task` and reported what it loaded.
+  - A new session with `--tools ""` named the active card's id, goal and next step, which proves the SessionStart injection.
+  - `handoff` updated decisions, status, verified, next and the log, and `check` passed.
+  - `claude -p "/compact" --resume <session>` ran the PreCompact hook: a `compacted (manual)` note with the git snapshot appeared in the card's Log.
+- **Mutants**, one at a time in copies, every one failing a suite:
+  - `tasks.sh`: `**` as one segment, `?` as a literal, dependencies not transitive, done cards counted, INDEX drift ignored, the active file elsewhere, worktree without the overlap check, splitting on every comma, no folder rule, placeholders not checked, `resolve` not exiting
+  - after the skeptic: no lower-casing, no dot-folder rule, existing folders ignored, whole project as empty, nested braces once, commas in brackets, no duplicate numbers, broad placeholders, no `..` check
+  - hooks: SessionStart silent when active, PreCompact exiting 2, the example lesson kept, more than 5 lessons, no cap, no note, the note appended after a later section, a path followed from the active file
+  - Two survivors were found and fixed by adding tests: `?` against a concrete letter, and a path traversal to a file that exists.
+
+### Not verified
+- `tasks.sh worktree` with a real Claude session in the new worktree (covered by unit tests only: branch, card state, active file, refusals).
+- A real interactive session where auto-compaction fires (only a manual `/compact` in a headless run was seen).
+- A long, multi-day project run with cards; the examples are toy projects.
+- Everything listed as not verified for 1.0.0 still is.
+
+### Skeptic review
+A fresh-context `dev-harness:skeptic` (headless, `--plugin-dir`) reviewed `git diff main..build/v1.1.0` at `ebc30d5`. Verdict: CHANGES REQUESTED, 9 issues (4 medium, 5 low). Its sandbox denied the commands that build temp projects, so issues 2 to 6 were hand traces; each was reproduced here as a failing test (30 failing checks) before the fix.
+- **Fixed:** whole-project scopes (`.`, `./`, `/`); dot folders (`.github`); nested braces; commas in `[..]`; quoted entries, `//` and `.` segments and letter case; `check` now fails on `..`, unmatched `{` or `[`, and duplicate card numbers; placeholder detection limited to whole `<...>` values and lines; the PreCompact note under `## Log`.
+- **Also fixed:** the worktree refusal used `\t` in a BSD sed pattern (cosmetic); it is formatted with awk now.
+- **Documented, not fixed:** a folder that does not exist yet and has a dot in its name needs a trailing `/` (the one way overlap can miss); card numbers come from the local folder, so cards are made before worktrees are branched (and `check` fails on a duplicate after a merge).
+
+### Next
+- Ask the user before pushing `main` and `v1.1.0`. After the push: CI on Ubuntu and macOS, and an install from GitHub in an isolated config.
+- Plan v1.2.0 (forge, promote, perf pack) and show it before building.
 
 ## Checkpoint v1.0.2 — 2026-11-11
 
