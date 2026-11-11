@@ -56,8 +56,21 @@ while IFS=$'\t' read -r name src; do
   [ "$(jq -r '.name // empty' "$pj" 2>/dev/null)" = "$name" ]; check "plugin.json name matches entry" $?
   ver=$(jq -r '.version // empty' "$pj" 2>/dev/null)
   [[ "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; check "plugin.json version is semver" $?
-  top=$(grep -Eom1 '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md 2>/dev/null | cut -c4-)
-  [ "$top" = "$ver" ]; check "CHANGELOG top entry ($top) matches plugin.json version ($ver)" $?
+  # A plugin with its own CHANGELOG.md is checked against it; otherwise against the root CHANGELOG.md.
+  cl=CHANGELOG.md; [ -f "$src/CHANGELOG.md" ] && cl="$src/CHANGELOG.md"
+  top=$(grep -Eom1 '^## [0-9]+\.[0-9]+\.[0-9]+' "$cl" 2>/dev/null | cut -c4-)
+  [ "$top" = "$ver" ]; check "$cl top entry ($top) matches plugin.json version ($ver)" $?
+
+  # Symlinks: Claude Code copies a link's target into the plugin cache only when it resolves inside this
+  # marketplace (a link outside it is skipped on install). Every link must resolve, and inside the repo.
+  badlinks=""; nl=0
+  while IFS= read -r l; do
+    nl=$((nl+1))
+    tgt=$(cd "$(dirname "$l")" 2>/dev/null && cd "$(dirname "$(readlink "$l")")" 2>/dev/null && pwd -P)
+    if [ ! -e "$l" ] || [ -z "$tgt" ]; then badlinks="$badlinks $l(dangling)"
+    else case "$tgt/" in "$(pwd -P)/"*) ;; *) badlinks="$badlinks $l(outside the marketplace)" ;; esac; fi
+  done < <(find "$src" -type l)
+  [ -z "$badlinks" ]; check "$nl symlink(s) resolve inside the marketplace${badlinks:+ (bad:$badlinks)}" $?
 
   extra=$(find "$src/.claude-plugin" -mindepth 1 -not -name plugin.json -not -name 'icon.png')
   [ -z "$extra" ]; check ".claude-plugin/ holds only plugin.json${extra:+ (found: $extra)}" $?
