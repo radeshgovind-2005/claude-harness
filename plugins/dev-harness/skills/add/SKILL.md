@@ -1,7 +1,7 @@
 ---
 name: add
-description: Add one part of dev-harness to an existing project — guardrails, reviewer, lessons, memory, workflows, rules, or all. Never overwrites existing files.
-argument-hint: "<guardrails|reviewer|lessons|memory|workflows|rules|all> [--profile prototype|product|assignment]"
+description: Add one part of dev-harness to an existing project — guardrails, reviewer, lessons, memory, workflows, rules, tasks, or all. Never overwrites existing files.
+argument-hint: "<guardrails|reviewer|lessons|memory|workflows|rules|tasks|all> [--profile prototype|product|assignment]"
 disable-model-invocation: true
 allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.sh *) Bash(git status *) Bash(git branch *) Bash(git rev-parse *)
 ---
@@ -11,7 +11,7 @@ Add one part of dev-harness to this project. Input from the user: $ARGUMENTS
 Work in the current project directory. Scaffolding is done by one script; never copy template files by hand:
 
 ```
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.sh <dir> files      [--part <memory|lessons|reviewer|workflows|rules>] [--profile <p>] [--dry-run]
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.sh <dir> files      [--part <memory|lessons|reviewer|workflows|rules|tasks>] [--profile <p>] [--dry-run]
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.sh <dir> guardrails --profile <p> [--verify-cmd "<cmd>"] [--merge-settings] [--dry-run]
 ```
 
@@ -26,6 +26,7 @@ The script never overwrites; it prints `add`, `skip`, `merge`, `update`, `ok` or
 | `reviewer` | `docs/agents/INDEX.md`: how to use `dev-harness:skeptic` and when delegation pays | `files --part reviewer` | no |
 | `workflows` | `docs/workflow.md`, `docs/agents/first-workflow.md` | `files --part workflows` | no |
 | `rules` | `.claude/rules/` (path-scoped example) | `files --part rules` | no |
+| `tasks` | `docs/tasks/` (card template and INDEX, used by `split`, `handoff`, `resume`) and `.gitignore += .claude/active-task`. If the project already has guardrails, also offer the guardrails phase (dry run, then `--merge-settings` after a yes) so the two task hooks (SessionStart, PreCompact) get added and registered | `files --part tasks`, then (if `.claude/hooks/harness.conf` exists) `guardrails` | no (yes for the guardrails step: use the project's profile) |
 | `guardrails` | hooks, `harness.conf`, `.claude/settings.json`, CI workflow, then runs the hook tests | `guardrails` | yes |
 | `all` | every `files` part, then `guardrails` last | `files`, then `guardrails` | yes |
 

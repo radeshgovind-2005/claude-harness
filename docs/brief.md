@@ -217,3 +217,20 @@ Checked against the official plugin docs:
 4. **Scripts.** Skills call bundled scripts with `bash "${CLAUDE_PLUGIN_ROOT}/scripts/..."`. They do not use `` !`cmd` `` injection, because a setting can disable it.
 5. **Reserved names.** Plugin names starting with `claude-` are reserved. The plugin is `dev-harness`, so that rule doesn't apply. The marketplace name `claude-harness` is checked with `claude plugin validate`.
 6. **Guardrail sources.** The zip's files live outside the repo, at `~/Downloads/claude-harness/`. From v0.2.0 they are copied into `plugins/dev-harness/templates/`.
+
+## 16. Stateful work: task cards (added 2026-11-11, v1.1.0)
+
+State lives in files, not in the conversation. A session is disposable; a task card is not. Any session or person can pick up one card with a small, clean context, and long work prefers handoff, `/clear` and resume over compaction.
+
+| Piece | What it is | Enforced by |
+|---|---|---|
+| Task card `docs/tasks/NNN-slug.md` | Goal, Done when (a real check), Scope (globs), Read first (3-5 files), Decisions (decision and reason), Status (open, in-progress, blocked, done), Verified / Not verified, Next, Owner, Depends | `tasks.sh check` (fields, statuses, dependencies, INDEX) |
+| `docs/tasks/INDEX.md` | one row per card: id, title, status, owner, depends | written by `tasks.sh index`; `check` fails on drift |
+| Not parallel | two not-done cards whose scopes overlap with no dependency between them | `tasks.sh overlap` (glob intersection on patterns, not files) |
+| Active card | per worktree, in a gitignored `.claude/active-task` | `tasks.sh active` |
+| One worktree per card | `git worktree` plus branch `task/<id>` | `tasks.sh worktree` refuses an overlap or an unfinished dependency |
+| `split`, `handoff`, `resume` | break a goal into cards; write the state into the card before `/clear`; load only what one card needs | skills (text) calling the script (code) |
+| SessionStart hook | injects the active card and the newest 5 lessons | `task-context.sh`, copied into projects with guardrails |
+| PreCompact hook | tells the compaction to keep the card's goal, decisions and status, and appends a timestamped note with a git snapshot | `task-compact.sh`; it never blocks compaction |
+
+Checked against the hooks docs: PreCompact stdout becomes instructions for the compaction summary, and exit 2 blocks compaction (so the hook always exits 0). A Stop hook cannot remind Claude without continuing the turn (`additionalContext` continues the conversation; `systemMessage` reaches only the user), so there is no Stop reminder: the "update your card" rule is text in the template `CLAUDE.md`.

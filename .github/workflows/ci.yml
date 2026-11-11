@@ -42,5 +42,7 @@ jobs:
         run: /bin/bash tests/goal-test.sh
       - name: showcase (facts script and role agents)
         run: /bin/bash tests/showcase-test.sh
+      - name: tasks (task cards, overlap, worktrees)
+        run: /bin/bash tests/tasks-test.sh
       - name: docs, examples, line endings, icon
         run: /bin/bash tests/docs-test.sh

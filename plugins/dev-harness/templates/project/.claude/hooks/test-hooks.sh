@@ -318,7 +318,7 @@ check "no active card: the card gets no note"           0  "$(notes)"
 printf '009-gone\n' > "$K/.claude/active-task"
 check "a card that does not exist: SessionStart is silent" "" "$(ctx)"
 check "... and PreCompact too"                          "" "$(pcmp)"
-printf '../../../etc/hosts\n' > "$K/.claude/active-task"
+printf 'SECRET outside docs/tasks\n' > "$K/secret.md"; printf '../../secret\n' > "$K/.claude/active-task"
 check "a path in .claude/active-task is not followed"   "" "$(ctx)"
 printf '001-api\n' > "$K/.claude/active-task"
 out=$(ctx)

@@ -24,7 +24,7 @@ Every skill and agent: when to use it, what it reads and writes, what it never d
 
 ### add
 - **Use when:** adding one part to a project.
-- **Input:** `<guardrails|reviewer|lessons|memory|workflows|rules|all> [--profile P]`.
+- **Input:** `<guardrails|reviewer|lessons|memory|workflows|rules|tasks|all> [--profile P]`.
 
 | Part | Adds |
 |---|---|
@@ -33,6 +33,7 @@ Every skill and agent: when to use it, what it reads and writes, what it never d
 | `reviewer` | `docs/agents/INDEX.md` |
 | `workflows` | `docs/workflow.md`, `docs/agents/first-workflow.md`, `docs/audits/README.md` |
 | `rules` | `.claude/rules/` |
+| `tasks` | `docs/tasks/_template.md`, `docs/tasks/INDEX.md`, `.gitignore += .claude/active-task`. With guardrails already in place, `add` also offers the guardrails merge so the two task hooks get registered |
 | `guardrails` | hooks (with the shared `harness-conf.sh` parser), `harness.conf`, `.claude/settings.json`, CI workflow, then the hook self-test. Without `--verify-cmd`, product and assignment get a `VERIFY_CMD` detected from the project, or an empty one (both reported as a `note`) |
 | `all` | every part; guardrails last |
 
@@ -44,6 +45,21 @@ Every skill and agent: when to use it, what it reads and writes, what it never d
 - **Input:** what went wrong (or the latest correction).
 - **Does:** updates a similar lesson in place instead of adding a duplicate; tags lessons about discovery `[discover]`.
 - **Writes:** `docs/lessons.md`. **Asks before** promoting a rule to `CLAUDE.md`, and before deleting a lesson.
+
+### split
+- **Use when:** the work is too big for one session, or parts could run in parallel.
+- **Input:** a goal, or nothing to use `docs/intent.md` (it offers `discover` first when there is no decided intent).
+- **Does:** drafts 2 to 6 cards (goal, done-when check, scope globs, 3 to 5 read-first paths, dependencies, next step), shows them as a table with what can run in parallel, and writes nothing without a yes. Then `tasks.sh new` per card and `tasks.sh check`. Offers `tasks.sh worktree <id>` for parallel cards.
+- **Never:** writes a card by hand, or drops a dependency or widens a scope to make `check` pass without your yes.
+
+### handoff
+- **Use when:** before you stop or `/clear` on work with an active card, or when the context gets long. Claude may start it itself.
+- **Does:** updates the card: decisions with reasons, status, verified and not verified, next step, a log line; runs `tasks.sh index` and `check`; says it is safe to `/clear` and how to resume.
+- **Never:** marks a card `done` without the card's check passing in that session, or edits anything but the card.
+
+### resume
+- **Use when:** you start a session on one card. It is `/dev-harness:resume <id>`, not the built-in `/resume`, which reopens a conversation.
+- **Does:** sets the active card (`tasks.sh active`), loads only `CLAUDE.md`, `docs/intent.md`, the newest 5 lessons, `docs/architecture.md`, the card, then the card's "Read first" files, and reports what it loaded, what was missing and the next step. Waits for a yes before editing.
 
 ### explore
 - **Use when:** you want to make a number better and the best change is not obvious.
@@ -100,3 +116,4 @@ Pick the one whose question it is; do not send one question to two of them.
 | `goal.sh start \| status \| stop` | state for the goal loop | `DEV_HARNESS_STATE_DIR` moves the state; `GOAL_CHECK_TIMEOUT` seconds per check (default 120) |
 | `ax-check.sh [dir]` | facts for the AX reviewer: router length, routed paths exist, hooks executable, `settings.json` valid, placeholders, profile, intent status | `PASS`, `WARN`, `FAIL` lines, exit 1 on any `FAIL`; reads files only |
 | `showcase-facts.sh [dir]` | facts for `showcase`: history, most-changed files, tests, README headings, commands, intent, measured gains, lessons | `FACT` lines; reads files and git history only |
+| `tasks.sh new \| check \| overlap \| index \| active \| worktree` | task cards in `docs/tasks/`: writes cards, checks fields, dependencies and the INDEX, fails when two not-done cards overlap in scope without a dependency, keeps the active card per worktree, makes a worktree per card | `TASKS_ROOT` sets the project; `PASS`, `WARN`, `FAIL` lines, exit 1 on any `FAIL`. Overlap compares glob patterns, not existing files |

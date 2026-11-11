@@ -22,12 +22,15 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 | `help` | You want this guide | `/dev-harness:help discover` | available |
 | `discover` | Before building anything: work out who it is for, what matters, where to push. Writes `docs/intent.md`. No code | `/dev-harness:discover here is the assignment text: …` | available |
 | `new` | Full setup of a project: discover, pick a profile (prototype / product / assignment), scaffold files. Never overwrites | `/dev-harness:new a CLI that tracks my reading list` | available |
-| `add <part>` | Add one part to an existing project: guardrails, reviewer, lessons, memory, workflows, rules, all. Never overwrites | `/dev-harness:add guardrails` | available |
+| `add <part>` | Add one part to an existing project: guardrails, reviewer, lessons, memory, workflows, rules, tasks, all. Never overwrites | `/dev-harness:add guardrails` | available |
 | `lesson` | You corrected Claude; record it in `docs/lessons.md` so it does not repeat. Updates a similar lesson; asks before promoting to `CLAUDE.md`. Lessons about discovery feed the next `discover` | `/dev-harness:lesson ran tests in the wrong folder` | available |
 | `explore` | You want to make a number better and the best change is not obvious. One change at a time: a script measures it, keeps what improves, reverts what doesn't, and logs `docs/experiments.md`. Stops at the target or after 2 variants with no gain | `/dev-harness:explore cut p95 latency of /search` | available |
 | `lens` | Review the work from three angles in fresh context: user (UX), next developer (DX), AI agent (AX). One ranked list with evidence; changes nothing | `/dev-harness:lens the onboarding flow` | available |
 | `goal` | Keep working until a command exits 0, with a budget of rounds and minutes (no token budget). A Stop hook runs the check, not a model; a checkpoint goes to `docs/progress.md` each round. Not the built-in `/goal` | `/dev-harness:goal pytest tests/api -q passes` | available |
 | `showcase` | You are about to show, hand in or publish the work. Picks the most impressive part that matters to the receiver in `docs/intent.md`, runs the demo, and drafts a demo, README section and talking points. Every claim is labelled VERIFIED / READ / UNVERIFIED; unverified ones stay out. Writes the README only if you say yes | `/dev-harness:showcase` | available |
+| `split` | The work is too big for one session or parts could run in parallel: breaks the goal in `docs/intent.md` into task cards (goal, done-when check, scope, read-first files, dependencies). A script fails when two cards would touch the same files without a dependency. Shows the plan first | `/dev-harness:split` | available |
+| `handoff` | Before you stop or `/clear`: writes decisions, status, verified, not verified and the next step into the active card, then says it is safe to clear. Claude may start it itself | `/dev-harness:handoff` | available |
+| `resume <id>` | Start a session on one card with a small context: `CLAUDE.md`, intent, 5 lessons, architecture, the card and its read-first files. Not the built-in `/resume` | `/dev-harness:resume 003` | available |
 
 ## Agents
 

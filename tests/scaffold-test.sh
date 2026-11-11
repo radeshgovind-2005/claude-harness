@@ -27,17 +27,19 @@ for prof in prototype product assignment; do
            .claude/settings.json .claude/hooks/harness.conf .github/workflows/dev-harness-hooks.yml; do
     [ -f "$d/$f" ]; check "has $f" $?
   done
-  for h in harness-conf protect-paths guard-bash format verify test-hooks; do [ -x "$d/.claude/hooks/$h.sh" ]; check "hook $h.sh is executable" $?; done
+  for h in harness-conf protect-paths guard-bash format verify test-hooks task-context task-compact; do [ -x "$d/.claude/hooks/$h.sh" ]; check "hook $h.sh is executable" $?; done
   grep -q 'ok      hook tests: Result: [0-9]* passed, 0 failed' "$d.guard.log"; check "project hook tests ran and passed" $?
   [ "$(grep -c '{{' "$d/CLAUDE.md")" = 0 ]; check "CLAUDE.md has no unrendered {{markers}}" $?
   grep -q "^- Profile: $prof " "$d/CLAUDE.md"; check "CLAUDE.md names profile $prof" $?
   [ "$(wc -l < "$d/CLAUDE.md")" -lt 100 ]; check "CLAUDE.md under 100 lines" $?
   grep -q "^PROFILE=$prof$" "$d/.claude/hooks/harness.conf"; check "harness.conf PROFILE=$prof" $?
   jq empty "$d/.claude/settings.json"; check "settings.json is valid JSON" $?
-  for h in protect-paths guard-bash verify; do
+  for h in protect-paths guard-bash verify task-context task-compact; do
     jq -e --arg h "$h" '[.hooks[]?[]?.hooks[]?.command] | map(test($h + "\\.sh")) | any' "$d/.claude/settings.json" >/dev/null; check "settings.json registers $h.sh" $?
   done
   grep -qxF "CLAUDE.local.md" "$d/.gitignore"; check ".gitignore ignores CLAUDE.local.md" $?
+  grep -qxF ".claude/active-task" "$d/.gitignore"; check ".gitignore ignores .claude/active-task (per worktree)" $?
+  TASKS_ROOT="$d" bash "$P/scripts/tasks.sh" check >"$d.tasks.log" 2>&1; check "tasks.sh check passes on a fresh scaffold (no cards yet)" $?
   case $prof in
     product)
       [ "$(edit_on_main "$d")" = 2 ]; check "product: edit on main is blocked" $?
@@ -150,9 +152,10 @@ part_files() { # part -> expected file set (space separated, sorted, trailing sp
     reviewer) echo "docs/agents/INDEX.md " ;;
     workflows) echo "docs/agents/first-workflow.md docs/audits/README.md docs/workflow.md " ;;
     rules) echo ".claude/rules/example-api.md " ;;
+    tasks) echo ".gitignore docs/tasks/INDEX.md docs/tasks/_template.md " ;;
     memory) echo ".gitignore CLAUDE.md docs/INDEX.md docs/architecture.md docs/conventions.md docs/experiments.md docs/lessons.md docs/progress.md " ;;
   esac; }
-for part in lessons reviewer workflows rules memory; do
+for part in lessons reviewer workflows rules tasks memory; do
   d=$(newrepo)
   bash "$SC" "$d" files --part "$part" --profile product >/dev/null 2>&1; check "$part: exits 0" $?
   [ "$(files_of "$d")" = "$(part_files "$part")" ]; check "$part: writes exactly its files" $?
@@ -163,7 +166,7 @@ for part in lessons reviewer workflows rules memory; do
   bash "$SC" "$d" files --part "$part" --profile product --dry-run >/dev/null 2>&1
   [ "$before" = "$(snapshot "$d")" ]; check "$part: dry run writes nothing" $?
 done
-for part in lessons reviewer workflows rules; do
+for part in lessons reviewer workflows rules tasks; do
   bash "$SC" "$(newrepo)" files --part "$part" >/dev/null 2>&1; check "$part: needs no --profile" $?
 done
 bash "$SC" "$(newrepo)" files --part memory >/dev/null 2>&1; [ $? -ne 0 ]; check "memory: needs --profile (CLAUDE.md is rendered)" $?
@@ -178,7 +181,7 @@ bash "$SC" "$d" files --part memory --profile product >/dev/null 2>&1
 # add all == new: the parts together equal the full files phase, plus guardrails
 d1=$(newrepo); d2=$(newrepo)
 bash "$SC" "$d1" files --profile product >/dev/null 2>&1; bash "$SC" "$d1" guardrails --profile product >/dev/null 2>&1
-for part in memory lessons reviewer workflows rules; do bash "$SC" "$d2" files --part "$part" --profile product >/dev/null 2>&1; done
+for part in memory lessons reviewer workflows rules tasks; do bash "$SC" "$d2" files --part "$part" --profile product >/dev/null 2>&1; done
 bash "$SC" "$d2" guardrails --profile product >/dev/null 2>&1
 [ "$(snapshot "$d1")" = "$(snapshot "$d2")" ]; check "all parts + guardrails == files + guardrails" $?
 # routing and naming in the rendered CLAUDE.md
@@ -198,8 +201,8 @@ done
 bash "$SC" "$(newrepo)" files --part "" --profile product >/dev/null 2>&1; [ $? -ne 0 ]; check "empty --part value fails (not 'all parts')" $?
 # memory routes to files other parts own: it must say so; the full files phase must not
 d=$(newrepo); out=$(bash "$SC" "$d" files --part memory --profile product 2>&1)
-grep -q 'note .*docs/workflow.md.*add workflows' <<<"$out" && grep -q 'note .*docs/audits/README.md.*add workflows' <<<"$out" && grep -q 'note .*docs/agents/INDEX.md.*add reviewer' <<<"$out"; check "memory: names the routed files it did not write" $?
-out=$(bash "$SC" "$d" files --part workflows 2>&1; bash "$SC" "$d" files --part reviewer 2>&1; bash "$SC" "$d" files --part memory --profile product 2>&1)
+grep -q 'note .*docs/workflow.md.*add workflows' <<<"$out" && grep -q 'note .*docs/audits/README.md.*add workflows' <<<"$out" && grep -q 'note .*docs/agents/INDEX.md.*add reviewer' <<<"$out" && grep -q 'note .*docs/tasks/INDEX.md.*add tasks' <<<"$out"; check "memory: names the routed files it did not write" $?
+out=$(bash "$SC" "$d" files --part workflows 2>&1; bash "$SC" "$d" files --part reviewer 2>&1; bash "$SC" "$d" files --part tasks 2>&1; bash "$SC" "$d" files --part memory --profile product 2>&1)
 ! grep -q '^  note ' <<<"$out"; check "memory: no note once workflows and reviewer exist" $?
 out=$(bash "$SC" "$(newrepo)" files --profile product 2>&1); ! grep -q '^  note ' <<<"$out"; check "full files phase prints no note" $?
 # .gitignore: the files phase adds both personal files; guardrails alone adds the settings one

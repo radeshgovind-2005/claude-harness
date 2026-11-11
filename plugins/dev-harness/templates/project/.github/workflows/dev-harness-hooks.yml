@@ -16,7 +16,7 @@ jobs:
         run: jq empty .claude/settings.json
       - name: Hooks are registered in settings.json
         run: |
-          for h in protect-paths guard-bash verify; do
+          for h in protect-paths guard-bash verify task-context task-compact; do
             jq -e --arg h "$h" '[.hooks[]?[]?.hooks[]?.command] | map(test($h + "\\.sh")) | any' .claude/settings.json >/dev/null \
               || { echo "FAIL: $h.sh is not registered in .claude/settings.json"; exit 1; }
           done

@@ -46,6 +46,7 @@ Read the file for your task before you start. Do not read all files.
 | Bug or repeat problem                 | `docs/lessons.md`           |
 | Resuming work, handoff, what is done  | `docs/progress.md`          |
 | Trying variants against a metric      | `docs/experiments.md`       |
+| Picking up, splitting or handing off  | `docs/tasks/INDEX.md`       |
 | Subagents, parallel or wide work      | `docs/agents/INDEX.md`      |
 | Not sure                              | `docs/INDEX.md`             |
 
@@ -64,5 +65,6 @@ Folder-specific rules load automatically from `.claude/rules/`.
 
 - When the user corrects you, record it with `/dev-harness:lesson` (one entry in `docs/lessons.md`; a similar lesson is updated, not duplicated).
 - Before you stop on multi-step work, add a checkpoint to `docs/progress.md`.
+- With an active task card: before you stop or the user runs `/clear`, update it with `/dev-harness:handoff`. For long work prefer handoff, `/clear`, `/dev-harness:resume <id>` over a compacted session.
 - If a lesson applies to every task, propose to move it into this file. Ask first.
 - Keep this file under 100 lines. Propose to delete rules that no longer prevent mistakes.

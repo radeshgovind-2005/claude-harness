@@ -4,6 +4,21 @@ All notable changes to the `dev-harness` plugin. Versions match `version` in
 `plugins/dev-harness/.claude-plugin/plugin.json`, which is what Claude Code uses
 to detect updates.
 
+## 1.1.0 — 2026-11-11
+
+Stateful, parallel work. State lives in task cards in `docs/tasks/`, not in the conversation: a session is disposable, a card is not. Any session or person picks up one card with a small context, and long work prefers handoff, `/clear` and resume over compaction. Nothing frozen in `docs/stability.md` changed; the new skills, part, hooks and card format are additions.
+
+### Added
+- **`scripts/tasks.sh`** (code enforces): `new` writes a card in a fixed form; `check` fails on a missing or placeholder field, a bad status, an unknown or cyclic dependency, or an INDEX that does not match the cards; `overlap` fails when two not-done cards have overlapping scopes and no dependency path between them (they are not parallel); `index` rewrites the INDEX table; `active` keeps the active card per worktree in a gitignored `.claude/active-task`; `worktree <id>` makes a worktree and branch `task/<id>` and refuses a card that overlaps another, depends on an unfinished card, or is not committed. Overlap intersects the glob patterns (`*`, `?`, `**`; `[..]` and `{..}` count as `*`), so two cards that will both create the same new file are caught.
+- **Skills:** `split` (a goal into cards, shown as a plan, written only after a yes, then `check`), `handoff` (Claude may start it: decisions, status, verified, next into the card, then "safe to /clear"), `resume <id>` (loads only `CLAUDE.md`, the intent, 5 lessons, the architecture doc, the card and its read-first files, and sets the active card).
+- **Part `tasks`** (`add tasks`, and in `new`): `docs/tasks/_template.md`, `docs/tasks/INDEX.md`, `.gitignore += .claude/active-task`. The template `CLAUDE.md` routes to it and says to hand off before stopping; `docs/INDEX.md` and `docs/workflow.md` say how cards work.
+- **Project hooks, all profiles:** `task-context.sh` (SessionStart: the active card and the newest 5 lessons, capped at 9,000 characters) and `task-compact.sh` (PreCompact: its stdout tells the compaction to keep the card's id, goal, decisions and status; it appends a timestamped "compacted" note with a git status snapshot to the card; it always exits 0, because exit 2 would block compaction). Both do nothing without an active card and need no `jq`.
+- `validate.sh`: the three profiles must register the same hooks, and every project hook must be registered.
+- Suite `tests/tasks-test.sh` in `run-all.sh` and CI; hook cases in `test-hooks.sh`.
+
+### Not added (after checking the docs)
+- A Stop reminder to update the card. A Stop hook's `additionalContext` reaches Claude but continues the conversation, and `systemMessage` reaches only the user, so it cannot be both non-blocking and visible to Claude. The rule is text in the template `CLAUDE.md` instead.
+
 ## 1.0.2 — 2026-11-11
 
 Fixes from an audit of the files copied into projects. No skill or agent was renamed and no `harness.conf` key changed meaning. Three behaviour changes are listed under "Changed".

@@ -23,6 +23,7 @@ claude --plugin-dir ./plugins/dev-harness
 | `/bin/bash tests/lens-test.sh` | `ax-check.sh`, lens consistency | about a minute |
 | `/bin/bash tests/goal-test.sh` | `goal.sh`, the Stop hook | about a minute |
 | `/bin/bash tests/showcase-test.sh` | `showcase-facts.sh`, the role agents, the showcase skill | about a minute |
+| `/bin/bash tests/tasks-test.sh` | `tasks.sh`: glob overlap, dependencies, card checks, the INDEX, the active card, worktrees | under a minute |
 | `/bin/bash tests/docs-test.sh` | links, versions, counts, examples, `--help`, the progress checkpoint, line endings, the icon, `CLAUDE.md` routes | seconds |
 | `/bin/bash tests/run-all.sh` | all of the above, one summary (`--fast` skips the scaffold suite and says so) | about 5 minutes |
 

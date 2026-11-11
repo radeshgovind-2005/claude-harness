@@ -12,6 +12,7 @@
 #               reviewer   docs/agents/INDEX.md
 #               workflows  docs/workflow.md, docs/agents/first-workflow.md, docs/audits/README.md
 #               rules      .claude/rules/
+#               tasks      docs/tasks/_template.md, docs/tasks/INDEX.md (task cards; see scripts/tasks.sh)
 #             --profile is required for the default and for memory (CLAUDE.md is rendered from it).
 # guardrails  .claude/hooks/*.sh, harness.conf, .claude/settings.json, CI workflow; then runs test-hooks.sh.
 #             Run it LAST: hooks take effect in the running session as soon as settings.json lands.
@@ -50,8 +51,8 @@ case "$PHASE" in files|guardrails) ;; *) die "phase must be 'files' or 'guardrai
 [ $PART_SET = 0 ] || [ -n "$PART" ] || die "--part needs a value"
 case "$PART" in
   "") ;;
-  memory|lessons|reviewer|workflows|rules) [ "$PHASE" = files ] || die "--part only applies to the files phase" ;;
-  *) die "--part must be memory, lessons, reviewer, workflows or rules" ;;
+  memory|lessons|reviewer|workflows|rules|tasks) [ "$PHASE" = files ] || die "--part only applies to the files phase" ;;
+  *) die "--part must be memory, lessons, reviewer, workflows, rules or tasks" ;;
 esac
 # The profile renders CLAUDE.md and picks the hooks; the other parts do not need it.
 NEED_PROFILE=0
@@ -157,6 +158,7 @@ if [ "$PHASE" = files ]; then
       docs/agents/INDEX.md) owners="reviewer" ;;
       docs/workflow.md|docs/agents/first-workflow.md|docs/audits/*) owners="workflows" ;;
       .claude/rules/*) owners="rules" ;;
+      docs/tasks/*) owners="tasks" ;;
       *) owners="memory" ;;
     esac
     # shellcheck disable=SC2086  # $owners is a short word list
@@ -164,10 +166,11 @@ if [ "$PHASE" = files ]; then
   done < <(find "$TPL/docs" "$TPL/.claude/rules" -type f -not -name '.DS_Store' | sort)
 
   want memory && gitignore_line "CLAUDE.local.md"
+  want tasks && gitignore_line ".claude/active-task"   # per worktree, written by tasks.sh active
 
   # The memory part writes the router and docs/INDEX.md, which route to files owned by other parts.
   if [ "$PART" = memory ]; then
-    for pair in "docs/workflow.md:workflows" "docs/agents/first-workflow.md:workflows" "docs/audits/README.md:workflows" "docs/agents/INDEX.md:reviewer"; do
+    for pair in "docs/workflow.md:workflows" "docs/agents/first-workflow.md:workflows" "docs/audits/README.md:workflows" "docs/agents/INDEX.md:reviewer" "docs/tasks/INDEX.md:tasks"; do
       if [ ! -e "$DEST/${pair%%:*}" ] && [ ! -L "$DEST/${pair%%:*}" ]; then
         say note "${pair%%:*} is routed from CLAUDE.md or docs/INDEX.md but does not exist; add it with: add ${pair##*:}"
       fi
