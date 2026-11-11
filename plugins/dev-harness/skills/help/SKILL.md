@@ -31,6 +31,8 @@ If `$ARGUMENTS` names one skill or agent below, show only that row plus a two-li
 | `split` | The work is too big for one session or parts could run in parallel: breaks the goal in `docs/intent.md` into task cards (goal, done-when check, scope, read-first files, dependencies). A script fails when two cards would touch the same files without a dependency. Shows the plan first | `/dev-harness:split` | available |
 | `handoff` | Before you stop or `/clear`: writes decisions, status, verified, not verified and the next step into the active card, then says it is safe to clear. Claude may start it itself | `/dev-harness:handoff` | available |
 | `resume <id>` | Start a session on one card with a small context: `CLAUDE.md`, intent, 5 lessons, architecture, the card and its read-first files. Not the built-in `/resume` | `/dev-harness:resume 003` | available |
+| `forge` | A gap keeps coming back (a lesson recorded twice, a hook misfire, a recurring need): proposes a new hook, skill, agent or folder rule for this project with a filled spec and tests. A script refuses it unless the tests pass and fail without the part; installing asks you. Claude may propose it; it builds nothing without your yes | `/dev-harness:forge we keep forgetting to update the changelog` | available |
+| `promote <part>` | A forged part has proven itself (3 real uses): generalizes it and puts it, with its tests, on a `promote/<part>` branch in your local clone of the marketplace. Opens a pull request only after you say yes | `/dev-harness:promote changelog-guard` | available |
 
 ## Agents
 

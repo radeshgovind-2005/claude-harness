@@ -14,7 +14,7 @@ If the argument is empty, use the most recent correction in this conversation. I
 
 1. **File.** Work in the current project. If `docs/lessons.md` is missing, create it with `bash ${CLAUDE_PLUGIN_ROOT}/scripts/scaffold.sh . files --part lessons` (it never overwrites). If `docs/intent.md` says `status: discovering`, the discover lock blocks this edit: say so and ask the user to finish discovery first. If a hook blocks the edit for another reason (for example the product profile on `main`), report that and stop. Do not write the file with a shell command to get around it.
 
-2. **Look for a similar lesson.** Read `docs/lessons.md`. A lesson is similar if it has the same root cause or would be prevented by the same rule, even if the words differ. If one exists, **update it in place**: sharpen the rule, add the new case to "Mistake", and change its date to today. Do not add a second entry. Say that you updated an existing lesson.
+2. **Look for a similar lesson.** Read `docs/lessons.md`. A lesson is similar if it has the same root cause or would be prevented by the same rule, even if the words differ. If one exists, **update it in place**: sharpen the rule, add the new case to "Mistake", and change its date to today. Do not add a second entry. Say that you updated an existing lesson. The same mistake twice means text is not enough: suggest `/dev-harness:forge` and name the likely part (a hook if the rule must never break, a skill for a procedure, an agent for a review, a path-scoped rule for one folder). Suggest only; do not start it.
 
 3. **Otherwise add one entry** at the top of "Entries", in this format:
 
