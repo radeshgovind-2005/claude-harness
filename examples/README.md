@@ -19,5 +19,6 @@ Read them as "what does it look like", not as proof that it works on your projec
 | [11-architect.md](11-architect.md) | `architect` | structure facts, options with costs, a recommendation |
 | [12-designer.md](12-designer.md) | `designer` | accessibility and contrast findings from source, with computed ratios |
 | [13-task-cards.md](13-task-cards.md) | `split`, `resume`, `handoff`, task hooks | three cards from an intent, a no-tools session that knows the active card (SessionStart), a handoff, the PreCompact note in the card, and an overlap FAIL that one dependency does not fix |
+| [14-forge-and-perf.md](14-forge-and-perf.md) | `forge`, `dev-harness-perf` | a lesson recorded twice becomes a proposed hook; the part through `forge.sh check`, the install ask and `forge.sh install`; a perf loop from a 5-run baseline to a kept variant with profiler evidence, and a keep refused by a broken correctness check |
 
 The `skeptic` is not here because its report is the same kind of list as `lens` and `tester`; `docs/progress.md` records each time it found something.
