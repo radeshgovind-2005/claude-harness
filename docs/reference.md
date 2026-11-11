@@ -61,6 +61,18 @@ Every skill and agent: when to use it, what it reads and writes, what it never d
 - **Use when:** you start a session on one card. It is `/dev-harness:resume <id>`, not the built-in `/resume`, which reopens a conversation.
 - **Does:** sets the active card (`tasks.sh active`), loads only `CLAUDE.md`, `docs/intent.md`, the newest 5 lessons, `docs/architecture.md`, the card, then the card's "Read first" files, and reports what it loaded, what was missing and the next step. Waits for a yes before editing.
 
+### forge
+- **Use when:** a gap keeps coming back: the same lesson twice, a hook that misfired, a recurring need found in `discover`, or you ask for a new rule, procedure, reviewer or folder rule. Claude may propose it; it builds nothing without your yes.
+- **Does:** picks the part type (rule that must never break → hook; repeatable procedure → skill; independent review → agent; facts for one folder → path-scoped rule; one-time task → nothing), proposes it, and after a yes writes `spec.md`, `files/` and `tests/` in `.claude/forge/<name>/`, then runs `forge.sh check`. After a second yes it runs `forge.sh install`, which asks again in a project with guardrails.
+- **The bar (code):** every spec field filled (Purpose, Which type and why, Trigger, Inputs and outputs, Method or loop, Unacceptable, Success check, Tests, Budget); the files fit the type (an agent without an edit tool, a rule with `paths:`); every test passes; and at least one test fails when the part's files are emptied. A misfiring hook is fixed test-first: a failing test that reproduces it, then the fix.
+- **Writes:** `.claude/forge/<name>/`, then on install `.claude/hooks/<name>.sh` plus `.claude/settings.json`, `.claude/skills/<name>/`, `.claude/agents/<name>.md` or `.claude/rules/<name>.md`, and the registry `docs/parts.md`. Never overwrites.
+
+### promote
+- **Use when:** a forged part is `proven` (3 real uses, counted with `forge.sh use`).
+- **Input:** the part name; it asks for the path to your local clone of the marketplace and the plugin or pack that should hold it.
+- **Does:** `forge.sh promote` creates branch `promote/<part>` in the clean clone and copies the part (spec, files, tests) to `plugins/<plugin>/parts/<part>/` (a skill or agent also to `skills/` or `agents/`). Claude removes project details, keeps the tests passing, updates that plugin's docs, runs the clone's full suite and commits on the branch.
+- **Never:** pushes or opens a pull request without your yes, or promotes a part that is not proven.
+
 ### explore
 - **Use when:** you want to make a number better and the best change is not obvious.
 - **Input:** what to improve and how it is measured. You confirm the exact metric command.
@@ -112,8 +124,19 @@ Pick the one whose question it is; do not send one question to two of them.
 | Script | Does | Notes |
 |---|---|---|
 | `scaffold.sh <dir> files \| guardrails` | copies templates into a project, never overwrites | `--profile`, `--part`, `--verify-cmd`, `--merge-settings`, `--dry-run`; prints `add`, `skip`, `merge`, `update`, `ok`, `note`, `FAIL` per path; exit 1 on any `FAIL` |
-| `explore.sh start \| baseline \| measure \| keep \| revert \| status` | the experiment referee | `EXPLORE_TIMEOUT` seconds per measurement (default 600) |
+| `explore.sh [--file F] [--template T] start \| baseline \| measure \| keep \| revert \| status` | the experiment referee. Optional Metric lines, each enforced: `Runs: N` (no fewer runs), `Noise: P%` (a gain must beat it), `Correctness: \`cmd\`` (must pass to keep), `Evidence: required` (keep needs `--evidence FILE`) | `EXPLORE_TIMEOUT` seconds per measurement (default 600); `baseline` and `measure` print `SPREAD=` |
 | `goal.sh start \| status \| stop` | state for the goal loop | `DEV_HARNESS_STATE_DIR` moves the state; `GOAL_CHECK_TIMEOUT` seconds per check (default 120) |
 | `ax-check.sh [dir]` | facts for the AX reviewer: router length, routed paths exist, hooks executable, `settings.json` valid, placeholders, profile, intent status | `PASS`, `WARN`, `FAIL` lines, exit 1 on any `FAIL`; reads files only |
 | `showcase-facts.sh [dir]` | facts for `showcase`: history, most-changed files, tests, README headings, commands, intent, measured gains, lessons | `FACT` lines; reads files and git history only |
+| `forge.sh check \| install \| use \| status \| list \| promote` | the quality bar for new parts and their life cycle: checks a part folder (spec, files by type, tests that pass and fail without the part), installs it into the project, counts real uses, marks it proven (3 uses), promotes it into a marketplace clone | `FORGE_TEST_TIMEOUT` seconds per test (default 300); `install`, `status` and `promote` ask in a project with guardrails |
 | `tasks.sh new \| check \| overlap \| index \| active \| worktree` | task cards in `docs/tasks/`: writes cards, checks fields, dependencies and the INDEX, fails when two not-done cards overlap in scope without a dependency, keeps the active card per worktree, makes a worktree per card | `TASKS_ROOT` sets the project; `PASS`, `WARN`, `FAIL` lines, exit 1 on any `FAIL`. Overlap compares glob patterns, not existing files |
+
+## dev-harness-perf (a second plugin in the marketplace)
+
+Install with `/plugin install dev-harness-perf@claude-harness`; it depends on dev-harness. Each part has a filled spec in `plugins/dev-harness-perf/parts/<name>/spec.md` that passes `forge.sh check`.
+
+| Part | Type | What it does |
+|---|---|---|
+| `perf-loop` | skill, `/dev-harness-perf:perf-loop` | baseline with 5+ runs and a noise threshold from the measured spread, `profiler` evidence, one hypothesis and one change at a time, kept only if it beats the noise and the correctness check passes; logs `docs/perf.md`. Drives `explore.sh --file docs/perf.md` |
+| `profiler` | agent, `dev-harness-perf:profiler` | the top hotspots of one command, each with evidence. Output: `STATUS:`, `COMMAND:`, `TOOL:`, `HOTSPOTS`, `EVIDENCE`, `HYPOTHESES`, `NOT CHECKED`. Tools `Read, Grep, Glob, Bash` |
+| `perf-guard` | hook (Stop), installed per project with `/dev-harness:forge install` | blocks a stop once when the median of `PERF_RUNS` runs of `PERF_CMD` is worse than `PERF_BASELINE` by more than `PERF_MAX_REGRESSION_PCT` (`PERF_DIRECTION`). Keys in `.claude/hooks/harness.conf` |

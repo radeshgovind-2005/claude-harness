@@ -44,7 +44,7 @@ ns=$(find "$P/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' '
 na=$(find "$P/agents" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
 rv=$(grep -Eo 'Status: v[0-9]+\.[0-9]+\.[0-9]+' README.md | head -n1 | sed 's/Status: v//')
 [ "$rv" = "$VER" ]; check "README status version ($rv) equals plugin.json ($VER)" $?
-word() { case "$1" in 1) echo one ;; 2) echo two ;; 3) echo three ;; 4) echo four ;; 5) echo five ;; 6) echo six ;; 7) echo seven ;; 8) echo eight ;; 9) echo nine ;; 10) echo ten ;; 11) echo eleven ;; 12) echo twelve ;; *) echo "$1" ;; esac; }
+word() { case "$1" in 1) echo one ;; 2) echo two ;; 3) echo three ;; 4) echo four ;; 5) echo five ;; 6) echo six ;; 7) echo seven ;; 8) echo eight ;; 9) echo nine ;; 10) echo ten ;; 11) echo eleven ;; 12) echo twelve ;; 13) echo thirteen ;; 14) echo fourteen ;; 15) echo fifteen ;; 16) echo sixteen ;; 17) echo seventeen ;; 18) echo eighteen ;; *) echo "$1" ;; esac; }
 sw=$(word "$ns"); aw=$(word "$na")
 grep -Eqi "\b$sw skills and $aw agents\b" README.md; check "README says '$sw skills and $aw agents' ($ns skills, $na agents on disk)" $?
 top=$(grep -Eom1 '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | cut -c4-)

@@ -4,6 +4,23 @@ All notable changes to the `dev-harness` plugin. Versions match `version` in
 `plugins/dev-harness/.claude-plugin/plugin.json`, which is what Claude Code uses
 to detect updates.
 
+## 1.2.0 — 2026-11-11
+
+A self-evolving harness. The template is the starting point; as a project grows, the harness proposes its own new parts, each in one strict form that code checks, installed only with the user's yes. Proven parts can go back to the marketplace. A second plugin, `dev-harness-perf` 0.1.0 (its own `CHANGELOG.md`), is the worked example. Nothing frozen in `docs/stability.md` changed; the part spec format is new and now listed there.
+
+### Added
+- **`scripts/forge.sh`** (code enforces the quality bar):
+  - `check` fails unless every spec field is filled, the files fit the part type (one executable script for a hook; `SKILL.md` with name and description; an agent with an explicit tools list and no edit tool; a rule with `paths:`), every test passes, and **at least one test fails when the part's files are emptied** (tests that do not test the part are refused).
+  - `install` copies a checked part into the project (hook plus a `.claude/settings.json` registration, skill, agent or path-scoped rule) and never overwrites.
+  - `use` counts real uses; `status ... proven` needs 3; `list` checks the registry `docs/parts.md`.
+  - `promote` puts a proven part on a `promote/<part>` branch in a clean local marketplace clone.
+- **Skills:** `forge` (Claude may propose; builds nothing without a yes; fixes a misfiring hook test-first) and `promote` (user-invoked; a pull request only after a yes). Template `skills/forge/part-spec.md`.
+- **Approval gate:** `guard-bash.sh` asks before `forge.sh install`, `status` and `promote`; no skill pre-approves them.
+- `docs/parts.md` (the parts registry) in the memory part, routed from the template `CLAUDE.md` and `docs/INDEX.md`.
+- **`explore.sh`** optional Metric lines, each enforced: `Runs: N` (no fewer runs: no single cold run), `Noise: P%` (a kept gain must beat it), `Correctness: \`cmd\`` (must pass to keep), `Evidence: required` (keep needs `--evidence FILE`); `baseline` and `measure` print `SPREAD=`; `--file` and `--template` choose the log. Without the new lines, nothing changes.
+- `lesson` suggests `forge` when the same mistake comes back; `discover` notes recurring needs as candidate parts.
+- Suites `tests/forge-test.sh` and `tests/perf-test.sh` in `run-all.sh` and CI. `validate.sh` checks a plugin against its own `CHANGELOG.md` when it has one, and fails on a symlink that dangles or leaves the marketplace.
+
 ## 1.1.0 — 2026-11-11
 
 Stateful, parallel work. State lives in task cards in `docs/tasks/`, not in the conversation: a session is disposable, a card is not. Any session or person picks up one card with a small context, and long work prefers handoff, `/clear` and resume over compaction. Nothing frozen in `docs/stability.md` changed; the new skills, part, hooks and card format are additions.

@@ -234,3 +234,26 @@ State lives in files, not in the conversation. A session is disposable; a task c
 | PreCompact hook | tells the compaction to keep the card's goal, decisions and status, and appends a timestamped note with a git snapshot | `task-compact.sh`; it never blocks compaction |
 
 Checked against the hooks docs: PreCompact stdout becomes instructions for the compaction summary, and exit 2 blocks compaction (so the hook always exits 0). A Stop hook cannot remind Claude without continuing the turn (`additionalContext` continues the conversation; `systemMessage` reaches only the user), so there is no Stop reminder: the "update your card" rule is text in the template `CLAUDE.md`.
+
+## 17. Self-evolving harness: forge, promote, packs (added 2026-11-11, v1.2.0)
+
+The template is only the starting point. As a project grows, the harness proposes its own new parts. It is open to new ideas, but every part follows one strict form; soft, half-finished parts are not allowed, and code holds the bar.
+
+| The need | Part |
+|---|---|
+| A rule that must never break | hook |
+| A repeatable procedure or loop | skill |
+| Independent judgment or review | agent (fresh context, read-only) |
+| Facts for one folder or file type | path-scoped rule |
+| A one-time task | nothing |
+
+| Piece | What it is | Enforced by |
+|---|---|---|
+| Part spec (`skills/forge/part-spec.md`) | Purpose, Which type and why, Trigger, Inputs and outputs, Method or loop, Unacceptable, Success check, Tests, Budget; frontmatter `name`, `type`, `status` (experimental, proven), `uses` | `forge.sh check`: every field filled, files fit the type, tests pass, and a test fails when the part's files are emptied |
+| `forge` skill | proposes a part (from discover, a lesson seen twice, a misfiring hook, or a request), writes it in `.claude/forge/<name>/` after a yes, checks it, installs after a second yes; fixes a hook test-first | the yes is the user's; `install` is not pre-approved and `guard-bash.sh` asks |
+| Registry `docs/parts.md` | part, type, status, uses, installed, spec link | written by `forge.sh`; `list` fails on drift |
+| `promote` skill | a proven part (3 real uses) goes to a local marketplace clone on `promote/<part>`, generalized, with its tests; a PR only after a yes | `forge.sh promote` refuses an unproven part, a dirty clone, an existing branch |
+| `dev-harness-perf` | a second plugin and the reference example: `perf-loop` (skill), `profiler` (agent), `perf-guard` (hook part), each with a filled spec that passes `forge.sh check` | `tests/perf-test.sh`; `explore.sh` (Runs, Noise, Correctness, Evidence) |
+
+Checked against the docs: a plugin can depend on another (`dependencies`), and a link inside a plugin that points elsewhere in the same marketplace is copied into the cache on install, so the pack reuses `explore.sh` instead of duplicating it (a local-folder marketplace skips such links).
+
