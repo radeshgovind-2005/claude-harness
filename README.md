@@ -2,7 +2,7 @@
 
 A Claude Code plugin marketplace with one plugin, **dev-harness**. It sets up and runs software projects the way experienced Claude Code users do: it works out who the work is for before anything is built, gives the project memory and guardrails that fit the kind of work (a prototype, a product or an assignment), has fresh-context reviewers check changes, and turns every correction into a lesson so the mistake does not come back.
 
-> **Status: v1.0.1.** Nine skills and five agents. From 1.0.0 the user-facing surface is stable: see [docs/stability.md](docs/stability.md). Works on macOS and Linux; Windows is not tested.
+> **Status: v1.0.2.** Nine skills and five agents. From 1.0.0 the user-facing surface is stable: see [docs/stability.md](docs/stability.md). Works on macOS and Linux; Windows is not tested.
 
 ## Install
 

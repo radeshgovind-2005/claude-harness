@@ -4,6 +4,27 @@ All notable changes to the `dev-harness` plugin. Versions match `version` in
 `plugins/dev-harness/.claude-plugin/plugin.json`, which is what Claude Code uses
 to detect updates.
 
+## 1.0.2 — 2026-11-11
+
+Fixes from an audit of the files copied into projects. No skill or agent was renamed and no `harness.conf` key changed meaning. Three behaviour changes are listed under "Changed".
+
+### Fixed
+- **CI read `harness.conf` differently from the hooks.** The `dev-harness-hooks` workflow used `grep '^BLOCK_MAIN=' | cut`, so `BLOCK_MAIN="0"`, ` BLOCK_MAIN = 0` or a later duplicate line slipped past its "product with BLOCK_MAIN=0" check while the hooks read them as 0. Now one parser, `.claude/hooks/harness-conf.sh`, is shared by `protect-paths.sh`, `guard-bash.sh`, `verify.sh` and the workflow. `scaffold-test.sh` runs the workflow's own step against 30 conf variants and checks that CI fails exactly when the project's hook lets an edit on `main` through.
+- **`protect-paths.sh` stripped the project root before lower-casing it.** bash's `pwd -P` keeps the case it is given, so with a project dir spelled `/Users/me/App` and a file path `/users/me/app/.claude/hooks/x.sh` the root was not stripped and the folder rules (`.claude/hooks/`, `.claude/settings.json`, `.git/`) did not match. Both sides are lower-cased first now. Regression tests in `test-hooks.sh`.
+- **`verify.sh` had no time limit of its own.** Claude Code discards the output of a hook that hits its registered timeout (300 s here), so a slow check let Claude stop unverified and silently. The check now gets 240 s (GNU `timeout` or `gtimeout`, otherwise a bash 3.2 process-group fallback), then the stop is blocked once with "VERIFICATION TIMED OUT".
+- `discover-lock.sh` header named the wrong matcher (`MultiEdit` was missing).
+- The project `docs/INDEX.md` routed to `audits/`, which no part created. The `workflows` part now writes `docs/audits/README.md`, and `add memory` names it in its `note` lines.
+- `ax-check.sh` stripped an unpaired leading or trailing quote; it now follows the same rules as `harness-conf.sh` (a parity test in `lens-test.sh`).
+
+### Changed
+- **No profile ships an npm `VERIFY_CMD`.** `product` (was `npm run typecheck && npm run lint`) and `assignment` (was `npm test`) now default to empty. Without `--verify-cmd`, `scaffold.sh` detects a command from `package.json` scripts (typecheck/lint for product, a real `test` script for assignment; the `npm init` placeholder is ignored; pnpm and yarn lockfiles are respected), a `Makefile` target, `Cargo.toml`, `go.mod` or `pyproject.toml`, and reports it, or the empty value, as a `note`. `new` and `add` still propose a command and ask, as before.
+- **The two guards fail closed without `harness-conf.sh`**, as they already do without `jq`. `verify.sh` blocks the stop once and says the work is not verified. A project upgraded from 1.0.1 keeps its old hooks (they parse inline) and gets the parser added; this is tested.
+- `verify.sh` documents exactly when it runs: on every Stop when `VERIFY_CMD` is set and `git status --porcelain` is not empty (uncommitted or untracked changes), or always outside a git repository.
+
+### Not changed (after checking the docs)
+- The audit asked for `Write(docs/intent.md)` in the `discover` skill's `allowed-tools`. The permissions docs say `Write(path)` rules never match and `Edit(path)` covers every file-edit tool. A headless run confirmed it: inside `discover`, Write created `docs/intent.md` with no denial under the existing `Edit(docs/intent.md)`; outside the skill the same Write was denied. `validate.sh` now fails on a `Write(`, `MultiEdit(` or `NotebookEdit(` path rule in any skill.
+- `guard-bash.sh` write detection stays a documented best-effort list.
+
 ## 1.0.1 — 2026-11-10
 
 A documentation fix. No skill, agent, script, hook or template changed.

@@ -29,7 +29,7 @@ has '^PASS +routed paths exist'; check "every routed path exists" $?
 has '^WARN +CLAUDE.md placeholders'; check "unfilled placeholders are a WARN" $?
 has '^PASS +hooks registered'; check "registered hooks exist and are executable" $?
 has '^PASS +harness.conf profile.*product'; check "profile product is read" $?
-has '^PASS +VERIFY_CMD'; check "product VERIFY_CMD is set" $?
+has '^WARN +VERIFY_CMD.*product'; check "a product scaffold with no stack has an empty VERIFY_CMD (a WARN, not a FAIL)" $?
 has '^WARN +docs/intent.md.*missing'; check "no intent.md is a WARN" $?
 has '^PASS +docs/progress.md'; check "progress.md present" $?
 has '^SUMMARY pass=[0-9]+ warn=[0-9]+ fail=0$'; check "summary line counts zero failures" $?
@@ -79,6 +79,17 @@ sed -n '/^---$/,/^---$/p' "$P/agents/lens-reviewer.md" | grep -q '^name: lens-re
 grep -q 'ax-check.sh' "$P/skills/lens/SKILL.md"; check "lens runs ax-check.sh" $?
 grep -q 'ONE message' "$P/skills/lens/SKILL.md"; check "lens asks for the three reviewers in one message" $?
 grep -q '3 of 3\|Three reviewers started' "$P/skills/lens/SKILL.md"; check "lens checks the fan-in" $?
+
+echo "ax-check reads harness.conf like the project's harness-conf.sh"
+project product
+for v in 'PROFILE=product' 'PROFILE="product"' ' PROFILE = product ' $'PROFILE=product\r' 'PROFILE="product' $'PROFILE=banana\nPROFILE=product' "PROFILE=\"product\" "; do
+  printf '%s\nVERIFY_CMD="make test"\n' "$v" > "$D/.claude/hooks/harness.conf"
+  want=$(bash "$D/.claude/hooks/harness-conf.sh" PROFILE "")
+  got=$(bash "$AX" "$D" 2>&1 | sed -nE 's/^(PASS|WARN) +harness\.conf profile [^ ]+ //p' | sed -E "s/^PROFILE is '(.*)', expected.*/\\1/")
+  [ "$got" = "$want" ]; check "same PROFILE for [$(printf '%s' "$v" | tr '\r\n' '^|')]: '$want'" $?
+done
+printf 'PROFILE=product\nVERIFY_CMD=" make test "\n' > "$D/.claude/hooks/harness.conf"
+OUT=$(ax); has "^PASS +VERIFY_CMD [^ ]+ set: $(bash "$D/.claude/hooks/harness-conf.sh" VERIFY_CMD x)\$"; check "same VERIFY_CMD for a quoted value with inner spaces" $?
 
 echo
 echo "Result: $pass passed, $fail failed"

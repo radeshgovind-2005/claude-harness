@@ -16,11 +16,12 @@ cd "$DEST" || exit 1
 p=0; w=0; f=0
 say() { printf '%-5s %s — %s\n' "$1" "$2" "$3"; case "$1" in PASS) p=$((p+1)) ;; WARN) w=$((w+1)) ;; FAIL) f=$((f+1)) ;; esac; }
 
-# conf KEY: value from .claude/hooks/harness.conf (CR, spaces and quotes stripped); empty if absent.
+# conf KEY: value from .claude/hooks/harness.conf, empty if absent. Same rules as the project's harness-conf.sh
+# (which this plugin script does not run: it is project code); tests/lens-test.sh checks that they agree.
 conf() {
   [ -f .claude/hooks/harness.conf ] || return 0
   tr -d '\r' < .claude/hooks/harness.conf | grep -E "^[[:space:]]*$1[[:space:]]*=" | tail -n 1 | cut -d= -f2- \
-    | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//'
+    | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/'
 }
 
 # 1. The router
