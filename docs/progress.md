@@ -6,7 +6,7 @@ Handoff notes so a new session can resume. Newest checkpoint first.
 
 Read this first when resuming. Update it at every checkpoint.
 
-- **Version:** 1.1.0 (task cards), merged into `main` and tagged `v1.1.0` locally on 2026-11-11, NOT pushed yet (waiting for the user's yes), so its CI and the GitHub install are NOT VERIFIED. Next milestone: v1.2.0 (forge, promote, perf pack), planned before building. 1.0.2 (audit fixes) was merged into `main`, tagged `v1.0.2` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43017098908 and 43017097262), and installing from GitHub is verified (see "Verified after the push" in the v1.0.2 checkpoint). No GitHub release was created for it. 1.0.1 is pushed and released on GitHub (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
+- **Version:** 1.1.0 (task cards), merged into `main`, tagged `v1.1.0` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43031442188 and 43031438275), and installing from GitHub is verified (see "Verified after the push" in the v1.1.0 checkpoint). No GitHub release was created for it. Next milestone: v1.2.0 (forge, promote, perf pack), planned before building. 1.0.2 (audit fixes) was merged into `main`, tagged `v1.0.2` and pushed on 2026-11-11. CI is green on Ubuntu and macOS (runs 43017098908 and 43017097262), and installing from GitHub is verified (see "Verified after the push" in the v1.0.2 checkpoint). No GitHub release was created for it. 1.0.1 is pushed and released on GitHub (a documentation-only patch: the 1.0.0 CHANGELOG had a wrong test count, and a published tag is not moved). 1.0.0 was merged into `main`, tagged `v1.0.0` and pushed on 2026-11-10. CI is green on Ubuntu and macOS (run 42894950311). Installing from GitHub and the update path from 0.5.0 are verified (see "Verified after the push" in the v1.0.0 checkpoint).
 - **Branches:** `main` is the release branch. `build/v0.1.0` to `build/v1.0.0` are the finished milestone branches. The old local branch `fix/ci-git-identity` was deleted on 2026-11-10 (its change was already on `main`, cd69265).
 - **Known quirk:** the `v0.4.0` tag points at `db84e15`, whose CI was red for one test (a missing git identity on runners). The fix is on `main` only; the tag was not moved.
 - **Release routine** (also in `docs/contributing.md`): branch `build/vX.Y.Z`, small commits, all suites (`tests/run-all.sh`), mutation checks, a fresh-context skeptic on `git diff main..build/vX.Y.Z`, CHANGELOG, a checkpoint here, merge, annotated tag, ask before pushing, then watch CI and install from GitHub in an isolated config.
@@ -45,6 +45,10 @@ Read this first when resuming. Update it at every checkpoint.
 - A long, multi-day project run with cards; the examples are toy projects.
 - Everything listed as not verified for 1.0.0 still is.
 
+### Verified after the push (2026-11-11)
+- **CI on `929a711`** (runs 43031442188 for `main` and 43031438275 for the tag): green on `ubuntu-latest` and `macos-latest`. The new `tasks` step passed 118 of 118 on both, and the project hook self-test 285 of 285 on both.
+- **Installing 1.1.0 from GitHub** (isolated `CLAUDE_CONFIG_DIR`): Skills (12) add, discover, explore, goal, handoff, help, lens, lesson, new, resume, showcase, split; Agents (5); Hooks (0); cache folder `1.1.0`. From the install cache, a prototype scaffold passed the project hook tests 285 of 285, and `tasks.sh check` ran there (WARN only for "no cards yet").
+
 ### Skeptic review
 A fresh-context `dev-harness:skeptic` (headless, `--plugin-dir`) reviewed `git diff main..build/v1.1.0` at `ebc30d5`. Verdict: CHANGES REQUESTED, 9 issues (4 medium, 5 low). Its sandbox denied the commands that build temp projects, so issues 2 to 6 were hand traces; each was reproduced here as a failing test (30 failing checks) before the fix.
 - **Fixed:** whole-project scopes (`.`, `./`, `/`); dot folders (`.github`); nested braces; commas in `[..]`; quoted entries, `//` and `.` segments and letter case; `check` now fails on `..`, unmatched `{` or `[`, and duplicate card numbers; placeholder detection limited to whole `<...>` values and lines; the PreCompact note under `## Log`.
@@ -52,7 +56,6 @@ A fresh-context `dev-harness:skeptic` (headless, `--plugin-dir`) reviewed `git d
 - **Documented, not fixed:** a folder that does not exist yet and has a dot in its name needs a trailing `/` (the one way overlap can miss); card numbers come from the local folder, so cards are made before worktrees are branched (and `check` fails on a duplicate after a merge).
 
 ### Next
-- Ask the user before pushing `main` and `v1.1.0`. After the push: CI on Ubuntu and macOS, and an install from GitHub in an isolated config.
 - Plan v1.2.0 (forge, promote, perf pack) and show it before building.
 
 ## Checkpoint v1.0.2 — 2026-11-11
