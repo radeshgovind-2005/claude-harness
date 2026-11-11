@@ -23,10 +23,14 @@ jobs:
       - name: harness.conf matches its profile
         run: |
           c=.claude/hooks/harness.conf
+          r=.claude/hooks/harness-conf.sh
           [ -f "$c" ] || { echo "FAIL: $c missing (hooks fall back to defaults)"; exit 1; }
-          p=$(grep -E '^PROFILE=' "$c" | tr -d '\r' | cut -d= -f2)
-          b=$(grep -E '^BLOCK_MAIN=' "$c" | tr -d '\r' | cut -d= -f2)
+          [ -f "$r" ] || { echo "FAIL: $r missing (the guard hooks block every edit and command without it)"; exit 1; }
+          # The parser the hooks use, so quotes, spaces and CRLF are read exactly as they read them.
+          p=$(bash "$r" PROFILE "")
+          b=$(bash "$r" BLOCK_MAIN 1)
           echo "profile=$p BLOCK_MAIN=$b"
+          # The hooks' rule: main protection is off only for an explicit 0.
           if [ "$p" = product ] && [ "$b" = 0 ]; then echo "FAIL: product profile with BLOCK_MAIN=0"; exit 1; fi
       - name: Run hook tests
         run: bash .claude/hooks/test-hooks.sh

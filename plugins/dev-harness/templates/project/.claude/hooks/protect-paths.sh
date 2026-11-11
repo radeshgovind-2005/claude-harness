@@ -3,19 +3,15 @@
 # Blocks edits to protected paths, and all edits on protected branches.
 # Exit 2 = block. The stderr message goes back to Claude.
 
-# Profile settings live in harness.conf next to this script (written by dev-harness).
-# Parsed, never sourced. Missing file or key = safe default.
-conf() { # key default -> value (CR, surrounding spaces and quotes stripped)
-  local f v
-  f="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/harness.conf"
-  grep -Eq "^[[:space:]]*$1[[:space:]]*=" "$f" 2>/dev/null || { printf '%s' "$2"; return; }
-  v=$(tr -d '\r' < "$f" | grep -E "^[[:space:]]*$1[[:space:]]*=" | tail -n 1 | cut -d= -f2-)
-  v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"
-  case "$v" in \"*\") v="${v#\"}"; v="${v%\"}" ;; esac
-  printf '%s' "$v"
-}
-# Main-branch protection is off only for an explicit 0. Anything else (typo, "true", empty) keeps it on.
-main_protected() { [ "$(conf BLOCK_MAIN 1)" != 0 ]; }
+# Profile settings live in harness.conf next to this script (written by dev-harness). harness-conf.sh,
+# also next to it, parses that file (never sources it) and is shared with the CI workflow. Without the
+# parser this guard cannot tell which profile is on, so it fails closed (blocks) and says how to fix it.
+# Builtins only (no dirname): this must work even when PATH is broken, so the jq check below can speak.
+case "${BASH_SOURCE[0]}" in */*) here="${BASH_SOURCE[0]%/*}" ;; *) here=. ;; esac; here=$(cd "$here" && pwd)
+if ! { [ -f "$here/harness-conf.sh" ] && . "$here/harness-conf.sh" && type main_protected >/dev/null 2>&1; }; then
+  echo "BLOCKED: .claude/hooks/harness-conf.sh (the dev-harness config parser) is missing or broken, so this guard cannot read the profile. Ask the user to restore it (run /dev-harness:add guardrails, or copy it from the plugin's templates): Claude cannot, because .claude/hooks/ is protected." >&2
+  exit 2
+fi
 
 # jq reads the tool input. Without it this guard cannot see what Claude is about to do, so it fails closed
 # (blocks) and says how to fix that. It never lets a command through unchecked.
@@ -42,9 +38,12 @@ normpath() { # path -> absolute physical path (works for files that do not exist
 }
 lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 
-root=$(normpath "${CLAUDE_PROJECT_DIR:-$PWD}")
+# Lower-case BOTH sides before the root is stripped: bash's `pwd -P` keeps the case it was given, so a
+# project dir spelled /Users/me/App and a file path /users/me/app/... would not share a prefix and the
+# folder rules below would never match.
+root=$(lower "$(normpath "${CLAUDE_PROJECT_DIR:-$PWD}")")
 file=$(normpath "$file")
-rel=$(lower "${file#"$root"/}")
+rel=$(lower "$file"); rel="${rel#"$root"/}"
 base=$(lower "$(basename "$file")")
 
 # --- 1. Allowed exceptions (checked first) ---
